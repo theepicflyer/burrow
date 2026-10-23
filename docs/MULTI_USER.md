@@ -69,18 +69,18 @@ renders above it, so your own login keeps working unchanged.
 **Connecting to an existing account (you):** `apps/users/adapters.py`'s
 `AutoConnectSocialAccountAdapter` auto-connects an incoming OIDC login to an
 existing local user **by matching email** (`User.objects.get(email__iexact=email)`).
-This only works if your WYGIWYH account's email is *exactly* the same as your
+This only works if your Burrow account's email is *exactly* the same as your
 Pocket ID account's email. Since Pocket ID is self-hosted, its emails are
 whatever you set them to be — there's no third-party verification step to
 worry about, but you still need the two to match character-for-character
 before either of you first logs in via OIDC.
 
-**First-time signup (second user):** if they don't already have a WYGIWYH account with
+**First-time signup (second user):** if they don't already have a Burrow account with
 a matching email, their first Pocket ID login auto-creates one — gated by
 `SOCIALACCOUNT_AUTO_SIGNUP`, which reads `OIDC_ALLOW_SIGNUP` (default
 `true`). Once they've signed up, consider setting `OIDC_ALLOW_SIGNUP=false` in
 `.env` and restarting the web container, so no other Pocket ID account can
-silently create a new WYGIWYH user.
+silently create a new Burrow user.
 
 ## 2. Sharing everything with a second user
 

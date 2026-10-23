@@ -1,0 +1,92 @@
+name: CI
+
+# Django test suite against Postgres, plus a missing-migrations check. Runs on
+# every PR and is called by release.yml before any image is built.
+
+on:
+  pull_request:
+  workflow_call:
+    inputs:
+      ref:
+        description: 'Git ref to test'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ inputs.ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:15-bookworm
+        env:
+          POSTGRES_USER: wygiwyh
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: wygiwyh
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U wygiwyh"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      SECRET_KEY: ci-only-not-secret
+      SQL_DATABASE: wygiwyh
+      SQL_USER: wygiwyh
+      SQL_PASSWORD: test
+      SQL_HOST: localhost
+      SQL_PORT: '5432'
+      CHECK_FOR_UPDATES: 'false'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.11'
+          enable-cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          uv sync --frozen
+          npm ci --prefix frontend
+
+      # Templates resolve assets through the Vite manifest, which collectstatic
+      # copies into app/static_files.
+      - name: Build frontend
+        run: |
+          npm run build --prefix frontend
+          cd app && uv run python manage.py collectstatic --noinput
+
+      - name: Check for missing migrations
+        working-directory: app
+        run: uv run python manage.py makemigrations --check --dry-run
+
+      # Import code hardcodes the container layout (/usr/src/app/temp,
+      # /usr/src/app/import_presets).
+      - name: Mirror the container's app path
+        run: |
+          sudo ln -s "$GITHUB_WORKSPACE/app" /usr/src/app
+          mkdir -p app/temp
+
+      - name: Run tests
+        working-directory: app
+        run: uv run --with tblib python manage.py test --parallel auto

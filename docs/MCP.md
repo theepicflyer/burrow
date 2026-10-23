@@ -1,6 +1,6 @@
 # MCP adapter (`/mcp`)
 
-WYGIWYH exposes a Model Context Protocol (MCP) endpoint at **`/mcp`** that lets an
+Burrow exposes a Model Context Protocol (MCP) endpoint at **`/mcp`** that lets an
 MCP client (the Claude Code CLI today; the claude.ai web connector once OAuth
 lands — see *Roadmap*) drive the tracker through tools backed by the existing DRF
 API. It is a **stateless streamable-HTTP** MCP server provided by
@@ -83,7 +83,7 @@ application-management UI or OIDC discovery is exposed.
 ## Connecting from the Claude Code CLI
 
 ```sh
-claude mcp add --transport http wygiwyh https://burrow.example.com/mcp \
+claude mcp add --transport http burrow https://burrow.example.com/mcp \
   --header "Authorization: Token <key>"
 ```
 

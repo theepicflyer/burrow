@@ -171,3 +171,6 @@ wygiwyh_*.sql
 doctored_*.sql
 .claude/*.local.*
 .playwright-mcp/
+
+# collectstatic output
+app/static_files/

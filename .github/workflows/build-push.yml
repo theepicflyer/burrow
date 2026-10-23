@@ -1,9 +1,9 @@
 name: Build and Push (reusable)
 
-# Reusable build/push of the prod Django image to GHCR.
-# Called by release.yml (nightly/dispatch/release) and version-bump.yml
-# (label-driven semver). Centralises the build so the build logic and the
-# GHA cache scope live in exactly one place.
+# Reusable build/push of the prod Django image to GHCR, called by release.yml.
+# The image carries the commit it was built from in the
+# org.opencontainers.image.revision label; the deployer checks it against the
+# release tag before deploying.
 
 on:
   workflow_call:
@@ -35,6 +35,10 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
 
+      - name: Resolve commit
+        id: rev
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -56,20 +60,15 @@ jobs:
           push: true
           provenance: false
           tags: ${{ inputs.image_tags }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ steps.rev.outputs.sha }}
+            org.opencontainers.image.version=${{ inputs.version }}
           build-args: |
             VERSION=${{ inputs.version }}
           platforms: linux/amd64,linux/arm64
 
           # --- CACHE CONFIGURATION ---
-          # Keep this scope key identical across all callers so the nightly,
-          # dispatch, release and semver builds all share one GHA cache.
-          #
-          # cache-to has ignore-error=true because pull_request-triggered
-          # callers (version-bump.yml) get a GHA cache token that is
-          # read-only for the base branch's cache scope (GitHub's
-          # cache-poisoning protection) — the cache *write* would otherwise
-          # fail the whole buildx solve. push-triggered callers (nightly,
-          # dispatch, release) get a writable token and populate the cache
-          # normally; ignore-error is a no-op for them.
+          # One scope shared by nightly, release and dispatch builds.
           cache-from: type=gha,scope=build-cache
           cache-to: type=gha,mode=max,scope=build-cache,ignore-error=true

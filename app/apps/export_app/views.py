@@ -156,7 +156,7 @@ def export_form(request):
                     content_type="application/zip",
                     headers={
                         "HX-Trigger": "hide_offcanvas, updated",
-                        "Content-Disposition": f'attachment; filename="{timestamp}_WYGIWYH_export.zip"',
+                        "Content-Disposition": f'attachment; filename="{timestamp}_Burrow_export.zip"',
                     },
                 )
                 return response
@@ -168,7 +168,7 @@ def export_form(request):
                     content_type="text/csv",
                     headers={
                         "HX-Trigger": "hide_offcanvas, updated",
-                        "Content-Disposition": f'attachment; filename="{timestamp}_WYGIWYH_export_{name}.csv"',
+                        "Content-Disposition": f'attachment; filename="{timestamp}_Burrow_export_{name}.csv"',
                     },
                 )
                 return response
