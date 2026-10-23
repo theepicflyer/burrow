@@ -16,7 +16,7 @@
     <div class="hidden lg:flex items-center justify-between border-b-2 border-(--line) sidebar-submenu-header">
       <a href="{% url 'index' %}" class="m-0 hidden lg:flex justify-start py-3 px-3 no-underline sidebar-title bh-brand">
         <c-burrow.mascot who="kacang" mood="happy" size="40" class="bh-brand__mark" />
-        <span class="bh-brand__name">WYGIWYH</span>
+        <span class="bh-brand__name">Burrow</span>
       </a>
 
       <button
@@ -38,7 +38,7 @@
     <div class="lg:hidden flex justify-between items-center p-4 text-base-content border-b-2 border-(--line)">
       <a href="{% url 'index' %}" class="bh-brand">
         <c-burrow.mascot who="kacang" mood="happy" size="40" class="bh-brand__mark" />
-        <span class="bh-brand__name">WYGIWYH</span>
+        <span class="bh-brand__name">Burrow</span>
       </a>
       <button type="button" class="btn btn-ghost btn-sm btn-circle" data-bs-target="#sidebar" data-bs-dismiss="offcanvas"
               aria-label={% translate 'Close' %}><i class="fa-solid fa-xmark"></i></button>
@@ -252,7 +252,7 @@
       {% if update_check.update_available %}
         <div class="my-3 sidebar-item">
           <a class="btn btn-primary btn-soft btn-sm w-full !block content-center"
-             href="https://github.com/eitchtee/WYGIWYH/releases/latest" target="_blank">
+             href="https://github.com/theepicflyer/burrow/releases/latest" target="_blank">
             <i class="fa-solid fa-circle-exclamation fa-fw lg:group-hover:me-2"></i>
             <span>v.{{ update_check.latest_version }} {% translate 'is available' %}!</span></a>
         </div>

@@ -100,7 +100,7 @@ def check_for_updates(timestamp=None):
     if not settings.CHECK_FOR_UPDATES:
         return "CHECK_FOR_UPDATES is disabled"
 
-    url = "https://api.github.com/repos/eitchtee/WYGIWYH/releases/latest"
+    url = "https://api.github.com/repos/theepicflyer/burrow/releases/latest"
 
     try:
         response = requests.get(url, timeout=60)

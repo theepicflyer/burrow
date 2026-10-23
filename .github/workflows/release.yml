@@ -1,8 +1,16 @@
-name: Release Pipeline
+name: Release
+
+# Every push to main runs the tests, then builds an image:
+# - if any PR merged by the push carries a version/* label, it bumps from the
+#   latest release, pushes :X.Y.Z + :latest and creates the GitHub release last,
+#   so a release never points at a missing image;
+# - otherwise it pushes :nightly.
+# workflow_dispatch builds a one-off image with a custom tag from any ref.
+#
+# See .github/scripts/plan-release.sh for how the version and the
+# "Deploy actions" release notes are worked out.
 
 on:
-  release:
-    types: [ created ]
   push:
     branches: [ main ]
   workflow_dispatch:
@@ -17,43 +25,78 @@ on:
         default: 'main'
         type: string
 
-env:
-  IMAGE_NAME: ghcr.io/${{ github.repository }}
-
 concurrency:
   group: release
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
-  meta:
+  plan:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
-      tags: ${{ steps.meta.outputs.tags }}
-      version: ${{ steps.meta.outputs.version }}
+      kind: ${{ steps.plan.outputs.kind }}
+      version: ${{ steps.plan.outputs.version }}
+      new_version: ${{ steps.plan.outputs.new_version }}
+      tags: ${{ steps.plan.outputs.tags }}
+      deploy_actions: ${{ steps.plan.outputs.deploy_actions }}
     steps:
-      # This action handles all the logic for tags (nightly vs release vs custom)
-      - name: Docker Metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.IMAGE_NAME }}
-          tags: |
-            # Logic for Push to Main -> nightly
-            type=raw,value=nightly,enable=${{ github.event_name == 'push' }}
-            # Logic for Release -> semver and latest
-            type=semver,pattern={{version}},enable=${{ github.event_name == 'release' }}
-            type=raw,value=latest,enable=${{ github.event_name == 'release' }}
-            # Logic for Manual Dispatch -> custom input
-            type=raw,value=${{ inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
+      - uses: actions/checkout@v4
+      - id: plan
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+          IMAGE_NAME: ghcr.io/${{ github.repository }}
+          INITIAL_VERSION: v2.0.0
+        run: .github/scripts/plan-release.sh
+
+  test:
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ github.event_name == 'push' && github.sha || inputs.ref }}
 
   build:
-    needs: meta
+    needs: [ plan, test ]
+    if: >-
+      !cancelled() && needs.test.result == 'success' &&
+      (needs.plan.result == 'success' || needs.plan.result == 'skipped')
     uses: ./.github/workflows/build-push.yml
     secrets: inherit
     permissions:
       contents: read
       packages: write
     with:
-      image_tags: ${{ needs.meta.outputs.tags }}
-      version: ${{ needs.meta.outputs.version }}
-      ref: ${{ inputs.ref || github.ref }}
+      image_tags: ${{ github.event_name == 'push' && needs.plan.outputs.tags || format('ghcr.io/{0}:{1}', github.repository, inputs.tag) }}
+      version: ${{ github.event_name == 'push' && needs.plan.outputs.version || inputs.tag }}
+      ref: ${{ github.event_name == 'push' && github.sha || inputs.ref }}
+
+  release:
+    needs: [ plan, build ]
+    if: needs.plan.outputs.kind == 'release' && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          NEW_VERSION: ${{ needs.plan.outputs.new_version }}
+          SHA: ${{ github.sha }}
+          DEPLOY_ACTIONS: ${{ needs.plan.outputs.deploy_actions }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$DEPLOY_ACTIONS" > notes.md
+          gh release create "$NEW_VERSION" \
+            --repo "$REPO" \
+            --target "$SHA" \
+            --title "$NEW_VERSION" \
+            --notes-file notes.md \
+            --generate-notes

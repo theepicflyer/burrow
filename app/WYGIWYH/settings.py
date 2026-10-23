@@ -17,7 +17,7 @@ from pathlib import Path
 
 from django.utils.text import slugify
 
-SITE_TITLE = "WYGIWYH"
+SITE_TITLE = "Burrow"
 TITLE_SEPARATOR = "::"
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -490,7 +490,7 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "WYGIWYH API",
+    "TITLE": "Burrow API",
     "DESCRIPTION": "A no-frills expense tracker",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
@@ -512,7 +512,7 @@ SPECTACULAR_SETTINGS = {
 # Tools proxy in-process to the existing DRF ViewSets, so per-tool scope is
 # enforced by each ViewSet's permission_classes (TokenScopePermission etc.).
 DJANGO_MCP_GLOBAL_SERVER_CONFIG = {
-    "name": "WYGIWYH",
+    "name": "Burrow",
     "stateless": True,
 }
 # Authentication on the /mcp endpoint itself. Reuses the project's API-token

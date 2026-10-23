@@ -4,7 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-WYGIWYH is an opinionated personal finance tracker. This is a **fork** of `eitchtee/WYGIWYH` maintained at `github.com/theepicflyer/finance-tracker`. The work-in-progress add-on is **Budgets & Funds** (see `app/apps/budgets/`): a sinking-fund model layered on top of the upstream transaction model, plus monthly budget rows that auto-materialize income for sinking categories.
+Burrow is a personal finance tracker, published at `github.com/theepicflyer/burrow` (public, AGPL-3.0). It is a **hard fork** of `eitchtee/WYGIWYH`: upstream history is kept up to the fork point, but upstream is not tracked or merged. Internal names still say WYGIWYH (the `app/WYGIWYH/` Django project, `wygiwyh` DB/user, `wygiwyh_*` theme keys); leave them, renaming them buys nothing and breaks existing deployments. User-visible text says Burrow, and the README credits WYGIWYH.
+
+The main additions are **Budgets & Funds** (see `app/apps/budgets/`): a sinking-fund model layered on top of the upstream transaction model, plus monthly budget rows that auto-materialize income for sinking categories.
+
+The repo is public. Never commit personal data: real names, emails, hostnames, amounts from a real ledger, DB dumps. Use `example.com` and fictional data in docs, tests and screenshots.
 
 ## Dev workflow
 
@@ -24,7 +28,7 @@ docker compose -f docker-compose.local.yml up -d --build web
 
 Rebuild is the cost of production parity — no auto-reload. If you need a fast inner loop, `docker-compose.dev.yml` runs Django + vite with code mounts and HMR, but it has not been the canonical path for this fork's work.
 
-`docker-compose.prod.yml` is the server-side compose; do not run it locally (it pulls upstream image and bind-mounts `./postgres_data`, which is what we deliberately moved away from).
+`docker-compose.prod.yml` is the example compose for self-hosters (pulls `ghcr.io/theepicflyer/burrow:latest`, bind-mounts `./postgres_data`); do not run it locally.
 
 ### One-off commands inside the container
 
@@ -50,7 +54,18 @@ docker compose -f docker-compose.local.yml up -d --build web
 
 ### Tests / UI verification
 
-There is no automated test suite. Validate changes by exercising the affected pages. If the Claude-in-Chrome MCP integration is connected (`list_connected_browsers` returns a device), drive verification through it: navigate to the affected URL, screenshot, optionally check console errors. The user must log into the running stack themselves; the session cookie then persists for the rest of the agent loop.
+Django's test runner, against Postgres. CI (`.github/workflows/ci.yml`) runs it on every PR and before every image build, together with `makemigrations --check`. Templates need the Vite manifest, so build the frontend first. Locally:
+
+```sh
+docker run -d --rm --name burrow-test-pg -e POSTGRES_USER=wygiwyh -e POSTGRES_PASSWORD=test -e POSTGRES_DB=wygiwyh -p 127.0.0.1:55432:5432 postgres:15-bookworm
+npm ci --prefix frontend && npm run build --prefix frontend
+cd app && export SECRET_KEY=test SQL_DATABASE=wygiwyh SQL_USER=wygiwyh SQL_PASSWORD=test SQL_HOST=127.0.0.1 SQL_PORT=55432
+uv run python manage.py collectstatic --noinput
+uv run python manage.py makemigrations --check --dry-run
+uv run python manage.py test --parallel auto
+```
+
+Add tests next to the app (`app/apps/<app>/tests/`) for new behaviour. For UI changes also exercise the affected pages. If the Claude-in-Chrome MCP integration is connected (`list_connected_browsers` returns a device), drive verification through it: navigate to the affected URL, screenshot, optionally check console errors. The user must log into the running stack themselves; the session cookie then persists for the rest of the agent loop.
 
 ### Python tooling
 
@@ -60,7 +75,7 @@ There is no automated test suite. Validate changes by exercising the affected pa
 
 Single `.env` at repo root, loaded by all compose files. Two gotchas:
 - `DJANGO_ALLOWED_HOSTS` is **space-separated**, not comma-separated (`settings.py:36`).
-- The checked-in `.env` has prod-ish values (`HTTPS_ENABLED=true`, prod URL, real secrets). For local work, ensure `localhost 127.0.0.1` are in `DJANGO_ALLOWED_HOSTS`. Be careful not to commit prod secrets if you touch this file.
+- `.env` is gitignored; `.env.example` is the template. For local work, ensure `localhost 127.0.0.1` are in `DJANGO_ALLOWED_HOSTS`.
 
 ## Architecture
 
@@ -157,69 +172,30 @@ Budget charts use Chart.js (`window.Chart`, see `frontend/src/js/charts.js`) fed
 encoding, and passing a pre-stringified blob double-encodes it and the chart silently fails to
 parse. See `views.budgets_analysis` → `analysis.html` (`budgetTrendData` / `sinkingData`).
 
-## Deploy
+## Releases and deploy
 
-This fork ships via GHCR, not Docker Hub, on a **label-driven semver** flow. Three
-workflows under `.github/workflows/`:
+Images go to `ghcr.io/theepicflyer/burrow`. Two workflows plus a reusable build:
 
-- `build-push.yml` — reusable (`workflow_call`) build of the prod image; the single place
-  the Docker build + GHA cache scope live.
-- `release.yml` — push to `main` → `:nightly`; `release: created` → `:<semver>` + `:latest`;
-  `workflow_dispatch` → a custom tag. Delegates the build to `build-push.yml`.
-- `version-bump.yml` — on a **merged** PR to `main`, reads the PR's `version/*` label and
-  auto-bumps from the latest GitHub release, builds `:<X.Y.Z>` + `:latest`, then cuts the
-  matching GitHub release **last** (after the image is pushed, so a release never points at a
-  missing image). The release is created with `GITHUB_TOKEN`, which by design does **not**
-  re-trigger `release.yml` — no double build.
+- `ci.yml`: tests on every PR; also called by `release.yml`.
+- `release.yml`: on every push to `main`, runs the tests, then `.github/scripts/plan-release.sh` looks at the PRs that push merged. If any carries a `version/*` label it bumps from the latest GitHub release, pushes `:X.Y.Z` + `:latest`, then creates the release **last** (so a release never points at a missing image). No label: it pushes `:nightly` only. `workflow_dispatch` builds a one-off `:<tag>` from any ref.
+- `build-push.yml`: the one place the Docker build lives (amd64 + arm64). The image's `org.opencontainers.image.revision` label is the commit it was built from.
 
-### The required per-PR decision
+### Shipping a change
 
-**Every PR must carry exactly one `version/{patch,minor,major}` label — or intentionally
-none.** Deciding this is required follow-through for every PR, not optional:
+A release is how work reaches production: the production server polls for new releases, has each one security-reviewed by an agent, and deploys it. So:
 
-- `version/patch` — fix/chore (bumps PATCH).
-- `version/minor` — new feature, backward-compatible (bumps MINOR, resets patch).
-- `version/major` — breaking change (bumps MAJOR, resets minor+patch).
-- **no label** — docs/CI-only or anything not worth a release. The merge still ships
-  `:nightly` via `release.yml`; `version-bump.yml` skips silently (no bump, no release, no CI
-  failure).
+- **One PR per piece of work.** If it is too big for one PR, stack PRs with `gh stack` (`gh extension install github/gh-stack`; `gh stack init`, `gh stack add`, `gh stack submit`) and merge the stack together.
+- **Exactly one `version/*` label per release**, on the single PR or on the **top** PR of a stack. Leave the lower PRs of a stack unlabeled; one push merging the stack makes one release. If several PRs in one push are labeled, the highest level wins.
+  - `version/patch`: fix or chore.
+  - `version/minor`: new feature, backward-compatible.
+  - `version/major`: breaking change.
+  - no label: docs/CI-only or not worth a release (ships `:nightly`, which production ignores).
+- **Manual steps go under `## Deploy actions` in the PR description**: a new or changed env var, a one-off management command, data to fix, anything the server can't do by just pulling the image and restarting (migrations run on start). The release job copies these sections into the release notes, and the deployer holds any release whose notes contain that heading until a human does the steps. Omit the heading entirely when there is nothing to do; don't write "None".
+- Don't hand-create releases or tags; the workflow does it.
 
-On a labeled merge, CI bakes the new version into the image via the `VERSION` build-arg →
-`APP_VERSION` (the navbar shows `v. X.Y.Z`).
+The navbar shows the version baked in at build time (`VERSION` build-arg → `APP_VERSION`).
 
-### One-time bootstrap
-
-There are currently **zero** releases, so the first labeled merge would seed `v1.0.0`
-regardless of label. To instead stamp *current main* as the first versioned image, run once:
-
-```sh
-gh release create v1.0.0 --target main --title v1.0.0 --generate-notes
-```
-
-That triggers `release.yml`'s `release: created` path and builds
-`ghcr.io/theepicflyer/finance-tracker:1.0.0` + `:latest`. After that, future labeled merges bump from
-the latest release as described above.
-
-### Deploying to prod
-
-On the prod host, pull the tag the server's compose pins (`:latest`, or a pinned `:X.Y.Z`):
-
-```sh
-docker compose pull web && docker compose up -d web
-```
-
-The server's compose pins the image tag and bind-mounts `./postgres_data`. Server
-credentials/auth (`docker login ghcr.io`) live on the host, not in this repo.
-
-### Manual escape hatches
-
-- Custom one-off image: run the **Release Pipeline** workflow via `workflow_dispatch` with a
-  `tag` (+ `ref`) — builds `:<tag>` without touching releases.
-- Hand-cut a release: `gh release create vX.Y.Z --target <sha> --generate-notes` — drives the
-  `release.yml` semver+`latest` build directly.
-
-Full one-off cutover playbooks (including the upstream → fork image swap and DB cutovers) are
-in `MIGRATIONS.md` — add a new entry there for any future destructive prod change.
+Destructive or multi-step upgrades also get a playbook entry in `MIGRATIONS.md`, referenced from the PR's Deploy actions.
 
 ## Code style notes specific to this fork
 
