@@ -80,6 +80,13 @@ jobs:
         working-directory: app
         run: uv run python manage.py makemigrations --check --dry-run
 
+      # Import code hardcodes the container layout (/usr/src/app/temp,
+      # /usr/src/app/import_presets).
+      - name: Mirror the container's app path
+        run: |
+          sudo ln -s "$GITHUB_WORKSPACE/app" /usr/src/app
+          mkdir -p app/temp
+
       - name: Run tests
         working-directory: app
-        run: uv run python manage.py test --parallel auto
+        run: uv run --with tblib python manage.py test --parallel auto
