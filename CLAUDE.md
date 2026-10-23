@@ -178,7 +178,7 @@ Images go to `ghcr.io/theepicflyer/burrow`. Two workflows plus a reusable build:
 
 - `ci.yml`: tests on every PR; also called by `release.yml`.
 - `release.yml`: on every push to `main`, runs the tests, then `.github/scripts/plan-release.sh` looks at the PRs that push merged. If any carries a `version/*` label it bumps from the latest GitHub release, pushes `:X.Y.Z` + `:latest`, then creates the release **last** (so a release never points at a missing image). No label: it pushes `:nightly` only. `workflow_dispatch` builds a one-off `:<tag>` from any ref.
-- `build-push.yml`: the one place the Docker build lives (amd64 + arm64). The image's `org.opencontainers.image.revision` label is the commit it was built from.
+- `build-push.yml`: the one place the Docker build lives (amd64 only). The image's `org.opencontainers.image.revision` label is the commit it was built from.
 
 ### Shipping a change
 
