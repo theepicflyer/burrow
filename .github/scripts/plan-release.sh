@@ -15,9 +15,18 @@ else
   shas="$(gh api "repos/$REPO/compare/$BEFORE...$AFTER" --jq '.commits[].sha')"
 fi
 
-prs="$(for sha in $shas; do
-  gh api "repos/$REPO/commits/$sha/pulls" --jq '.[] | select(.merged_at != null) | .number'
-done | sort -un)"
+prs="$({
+  for sha in $shas; do
+    gh api "repos/$REPO/commits/$sha/pulls" --jq '.[] | select(.merged_at != null) | .number'
+  done
+  # The upper PRs of a stack merge into the PR below them, not main, so the
+  # lookup above never returns them; they share the push's merge commit instead.
+  gh api "repos/$REPO/pulls?state=closed&sort=updated&direction=desc&per_page=50" \
+    --jq '.[] | select(.merged_at != null) | "\(.number) \(.merge_commit_sha)"' |
+    while read -r number merge_sha; do
+      if grep -qx "$merge_sha" <<<"$shas"; then echo "$number"; fi
+    done
+} | sort -un)"
 
 rank=0
 notes=""
@@ -33,7 +42,7 @@ for pr in $prs; do
     notes+=$'\n'"### #$pr $title"$'\n'"$section"$'\n'
   fi
 done
-echo "Merged PRs in this push: ${prs:-none}; bump rank $rank"
+echo "Merged PRs in this push: $(echo ${prs:-none}); bump rank $rank"
 
 delim="EOF_$(openssl rand -hex 8)"
 emit() { printf '%s<<%s\n%s\n%s\n' "$1" "$delim" "$2" "$delim" >> "$GITHUB_OUTPUT"; }
