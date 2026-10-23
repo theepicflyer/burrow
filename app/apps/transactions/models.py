@@ -10,6 +10,7 @@ from apps.common.models import (
     OwnedObjectManager,
     SharedObject,
     SharedObjectManager,
+    in_household,
 )
 from apps.common.templatetags.decimal import drop_trailing_zeros, localize_number
 from apps.currencies.utils.convert import convert
@@ -126,6 +127,8 @@ class SoftDeleteManager(models.Manager):
     def get_queryset(self):
         qs = SoftDeleteQuerySet(self.model, using=self._db)
         user = get_current_user()
+        if in_household(user):
+            return qs.filter(deleted=False)
         if user and not user.is_anonymous:
             account_ids = (
                 qs.filter(
@@ -150,6 +153,8 @@ class SoftDeleteManager(models.Manager):
 class AllObjectsManager(models.Manager):
     def get_queryset(self):
         user = get_current_user()
+        if in_household(user):
+            return SoftDeleteQuerySet(self.model, using=self._db)
         if user and not user.is_anonymous:
             return (
                 SoftDeleteQuerySet(self.model, using=self._db)
@@ -174,6 +179,8 @@ class DeletedObjectsManager(models.Manager):
     def get_queryset(self):
         qs = SoftDeleteQuerySet(self.model, using=self._db)
         user = get_current_user()
+        if in_household(user):
+            return qs.filter(deleted=True)
         if user and not user.is_anonymous:
             return qs.filter(
                 Q(account__visibility="public")
@@ -200,6 +207,8 @@ class GenericAccountOwnerManager(models.Manager):
     def get_queryset(self):
         queryset = super().get_queryset()
         user = get_current_user()
+        if in_household(user):
+            return queryset
         if user and not user.is_anonymous:
             return queryset.filter(
                 Q(account__visibility="public")

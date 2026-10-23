@@ -10,7 +10,7 @@ from django.views.decorators.http import require_http_methods
 from apps.common.decorators.htmx import only_htmx
 from apps.dca.forms import DCAEntryForm, DCAStrategyForm
 from apps.dca.models import DCAStrategy, DCAEntry
-from apps.common.models import SharedObject
+from apps.common.models import SharedObject, can_manage
 from apps.common.forms import SharedObjectForm
 
 
@@ -58,7 +58,7 @@ def strategy_add(request):
 def strategy_edit(request, strategy_id):
     dca_strategy = get_object_or_404(DCAStrategy, id=strategy_id)
 
-    if dca_strategy.owner and dca_strategy.owner != request.user:
+    if not can_manage(dca_strategy, request.user):
         messages.error(request, _("Only the owner can edit this"))
 
         return HttpResponse(
@@ -97,7 +97,7 @@ def strategy_delete(request, strategy_id):
     dca_strategy = get_object_or_404(DCAStrategy, id=strategy_id)
 
     if (
-        dca_strategy.owner != request.user
+        not can_manage(dca_strategy, request.user)
         and request.user in dca_strategy.shared_with.all()
     ):
         dca_strategy.shared_with.remove(request.user)
@@ -141,7 +141,7 @@ def strategy_take_ownership(request, strategy_id):
 def strategy_share(request, pk):
     obj = get_object_or_404(DCAStrategy, id=pk)
 
-    if obj.owner and obj.owner != request.user:
+    if not can_manage(obj, request.user):
         messages.error(request, _("Only the owner can edit this"))
 
         return HttpResponse(

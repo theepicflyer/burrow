@@ -24,7 +24,7 @@ from apps.rules.models import (
     TransactionRuleAction,
     UpdateOrCreateTransactionRuleAction,
 )
-from apps.common.models import SharedObject
+from apps.common.models import SharedObject, can_manage
 from apps.common.forms import SharedObjectForm
 from apps.common.decorators.demo import disabled_on_demo
 from apps.rules.tasks import check_for_transaction_rules
@@ -114,7 +114,7 @@ def transaction_rule_add(request, **kwargs):
 def transaction_rule_edit(request, transaction_rule_id):
     transaction_rule = get_object_or_404(TransactionRule, id=transaction_rule_id)
 
-    if transaction_rule.owner and transaction_rule.owner != request.user:
+    if not can_manage(transaction_rule, request.user):
         messages.error(request, _("Only the owner can edit this"))
 
         return HttpResponse(
@@ -178,7 +178,7 @@ def transaction_rule_delete(request, transaction_rule_id):
     transaction_rule = get_object_or_404(TransactionRule, id=transaction_rule_id)
 
     if (
-        transaction_rule.owner != request.user
+        not can_manage(transaction_rule, request.user)
         and request.user in transaction_rule.shared_with.all()
     ):
         transaction_rule.shared_with.remove(request.user)
@@ -224,7 +224,7 @@ def transaction_rule_take_ownership(request, transaction_rule_id):
 def transaction_rule_share(request, pk):
     obj = get_object_or_404(TransactionRule, id=pk)
 
-    if obj.owner and obj.owner != request.user:
+    if not can_manage(obj, request.user):
         messages.error(request, _("Only the owner can edit this"))
 
         return HttpResponse(

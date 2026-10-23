@@ -84,48 +84,23 @@ silently create a new Burrow user.
 
 ## 2. Sharing everything with a second user
 
-A fresh second account owns nothing and sees nothing except objects marked
-`visibility="public"`. Getting them to parity with you requires sharing the
-objects that carry data:
+A fresh second account owns nothing and sees nothing except objects marked `visibility="public"`. There are two ways to get both logins onto the same data.
 
-- **Accounts** (`apps/accounts/models.py`, `Account` / `AccountGroup`) —
-  transactions aren't shared directly; a transaction's visibility follows its
-  `account`'s sharing (see `SoftDeleteManager` in
-  `apps/transactions/models.py`, which joins through `account__owner` /
-  `account__shared_with`). Share the account and every transaction on it
-  becomes visible.
-- **Categories, tags, entities** (`TransactionCategory`, `TransactionTag`,
-  `TransactionEntity` in `apps/transactions/models.py`) — share these so the second user
-  can pick them when entering their own transactions, and so category-driven
-  views (budgets, rules) resolve for them too.
-- **Rules** (`apps/rules/models.py`, `TransactionRule`) and **DCA strategies**
-  (`apps/dca/models.py`, `DCAStrategy`) — share individually if you want the second user to
-  see/use them.
-- **Budgets** (`apps/budgets/models.py`, `Budget`) — not shared directly;
-  visibility follows the `Budget`'s `category` (see section 3).
+### Option A — household mode (recommended for a household)
 
-All of the above (except `Transaction` and `Budget`, which don't carry their
-own sharing fields) extend `SharedObject`
-(`apps/common/models.py`): an `owner`, a `visibility` (`private`/`public`), and
-a `shared_with` M2M. The default `objects` manager
-(`SharedObjectManager`) only returns objects that are public, owned by the
-current user, or in that user's `shared_with` — regardless of the
-`visibility` value, so a `private` object with you added to its
-`shared_with` is still visible to you.
+Set `HOUSEHOLD_MODE=true` in `.env` and restart the web container. Every signed-in user then sees and can edit, delete and re-share everything: accounts, account groups, categories, tags, entities, transactions (including recurring, installment and quick transactions), budgets, rules and DCA strategies. New objects need no sharing, and there is nothing to backfill.
 
-### Option A — per-object, via the UI
+How it works: `in_household(user)` in `apps/common/models.py` short-circuits every visibility manager (`SharedObjectManager`, `OwnedObjectManager`, the transaction managers, `BudgetManager`) to return all rows, and `can_manage(obj, user)` replaces the owner-only checks in the edit/delete/share views. The Share button is hidden. `owner` is still recorded, so it shows who created a row. Per-user view preferences such as untracking an account stay per user.
 
-Every shareable object's edit dialog has a sharing section (visibility +
-"Shared with users" — see `apps/common/forms.py`'s `SharedObjectForm`). Open
-each account, category, tag, entity, rule, and DCA strategy you want the second user to
-see, and add them to "Shared with users".
+Only turn this on when every account on the instance belongs to the household: it treats any signed-in user as a co-owner. Lock signup down (`OIDC_ALLOW_SIGNUP=false`, or restrict who can use the Burrow client in your IdP) so nobody else can join.
 
-### Option B — one-time bulk share via `manage.py shell`
+A member who owns no accounts of their own (typical for the second login) gets the first visible Main account as the default when entering a transaction.
 
-Faster for backfilling everything that already exists. Run inside the
-container (locally: `docker compose -f docker-compose.local.yml exec web
-python manage.py shell`; on prod: `docker compose exec web python manage.py
-shell`):
+### Option B — per-object sharing
+
+Leave `HOUSEHOLD_MODE` off and share objects explicitly. Each shareable object (accounts, account groups, categories, tags, entities, rules, DCA strategies) extends `SharedObject` (`apps/common/models.py`): an `owner`, a `visibility` (`private`/`public`) and a `shared_with` M2M. Transactions follow their account's sharing and budgets follow their category's, so they need nothing extra. Shared users can view and use an object, but only its owner can edit or delete it, and recurring, installment and quick transactions stay owner-only.
+
+Share one object at a time with the Share button in each list, or backfill everything with a one-off script in `docker compose exec web python manage.py shell`:
 
 ```python
 from django.contrib.auth import get_user_model
@@ -136,37 +111,16 @@ from apps.dca.models import DCAStrategy
 
 User = get_user_model()
 user_a = User.objects.get(email="you@example.com")
-user_b = User.objects.get(email="<second user's email>")
+user_b = User.objects.get(email="partner@example.com")
 
-# NOTE: use each model's `all_objects` (unfiltered) manager here, not
-# `objects` — SharedObjectManager filters by the *current* user, and there is
-# no request/thread-local user in a shell session, so `objects` would return
-# only public rows.
-SHARED_MODELS = [Account, AccountGroup, TransactionCategory, TransactionTag, TransactionEntity, TransactionRule, DCAStrategy]
-
-for model in SHARED_MODELS:
+# all_objects: there is no thread-local user in a shell, so `objects` would only return public rows.
+for model in [Account, AccountGroup, TransactionCategory, TransactionTag, TransactionEntity, TransactionRule, DCAStrategy]:
     for owner, other in ((user_a, user_b), (user_b, user_a)):
         for obj in model.all_objects.filter(owner=owner):
-            obj.shared_with.add(other)  # idempotent: M2M .add() is a no-op if already present
-
-print("done")
+            obj.shared_with.add(other)
 ```
 
-This is symmetric (shares A's objects with B *and* B's objects with A) and
-safe to re-run — `.add()` on a M2M is a no-op if the relation already exists,
-and the loop only ever adds, never removes existing shares.
-
-### Ongoing habit
-
-Newly created objects default to `visibility="private"` with an empty
-`shared_with` (see `SharedObject.save()` / the `Visibility` default in
-`apps/common/models.py`) — sharing is not inherited or automatic. Going
-forward, either:
-
-- share each new account/category/tag/etc. as you create it, using the
-  sharing section in its edit form, or
-- re-run the Option B snippet occasionally to catch up anything created
-  since the last run.
+It only adds shares and is safe to re-run. New objects start private, so re-run it (or share by hand) as you add things.
 
 ## 3. How the budgets app fits in
 
@@ -184,6 +138,6 @@ managers.)
 
 The monthly-status and budget-analysis pages (`services/monthly.py`,
 `services/analysis.py`) aggregate over all *visible* accounts and categories
-for the requesting user — once accounts and categories are shared per the
-section above, both logins will compute identical budget numbers from the
-same underlying transactions.
+for the requesting user — with household mode on, or once accounts and
+categories are shared per Option B, both logins compute identical budget
+numbers from the same underlying transactions.

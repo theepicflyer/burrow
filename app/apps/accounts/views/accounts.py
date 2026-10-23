@@ -8,7 +8,7 @@ from django.views.decorators.http import require_http_methods
 from apps.accounts.forms import AccountForm
 from apps.accounts.models import Account
 from apps.common.decorators.htmx import only_htmx
-from apps.common.models import SharedObject
+from apps.common.models import SharedObject, can_manage
 from apps.common.forms import SharedObjectForm
 
 
@@ -64,7 +64,7 @@ def account_add(request, **kwargs):
 @require_http_methods(["GET", "POST"])
 def account_edit(request, pk):
     account = get_object_or_404(Account, id=pk)
-    if account.owner and account.owner != request.user:
+    if not can_manage(account, request.user):
         messages.error(request, _("Only the owner can edit this"))
 
         return HttpResponse(
@@ -102,7 +102,7 @@ def account_edit(request, pk):
 def account_share(request, pk):
     obj = get_object_or_404(Account, id=pk)
 
-    if obj.owner and obj.owner != request.user:
+    if not can_manage(obj, request.user):
         messages.error(request, _("Only the owner can edit this"))
 
         return HttpResponse(
@@ -140,7 +140,10 @@ def account_share(request, pk):
 def account_delete(request, pk):
     account = get_object_or_404(Account, id=pk)
 
-    if account.owner != request.user and request.user in account.shared_with.all():
+    if (
+        not can_manage(account, request.user)
+        and request.user in account.shared_with.all()
+    ):
         account.shared_with.remove(request.user)
         messages.success(request, _("Item no longer shared with you"))
     else:

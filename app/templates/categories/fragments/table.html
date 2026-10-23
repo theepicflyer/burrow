@@ -1,4 +1,5 @@
-{% load i18n %}
+{% load i18n settings %}
+{% settings "HOUSEHOLD_MODE" as household_mode %}
 {% if active %}
   <div class="show-loading" hx-get="{% url 'categories_table_active' %}" hx-trigger="updated from:window"
        hx-swap="outerHTML">
@@ -37,7 +38,7 @@
                      hx-get="{% url 'category_take_ownership' category_id=category.id %}">
                     <i class="fa-solid fa-crown fa-fw"></i></a>
                 {% endif %}
-                {% if user == category.owner %}
+                {% if user == category.owner and not household_mode %}
                   <a class="btn btn-secondary btn-sm join-item"
                      role="button"
                      hx-target="#generic-offcanvas"

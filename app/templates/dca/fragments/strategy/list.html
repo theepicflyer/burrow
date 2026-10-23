@@ -1,4 +1,5 @@
-{% load i18n %}
+{% load i18n settings %}
+{% settings "HOUSEHOLD_MODE" as household_mode %}
 <c-ui.fab-single-action
         url="{% url 'dca_strategy_add' %}"
         hx_target="#generic-offcanvas">
@@ -51,7 +52,7 @@
                  hx-get="{% url 'dca_strategy_take_ownership' strategy_id=strategy.id %}">
                 <i class="fa-solid fa-crown fa-fw"></i></a>
             {% endif %}
-            {% if user == strategy.owner %}
+            {% if user == strategy.owner and not household_mode %}
               <a class="text-primary no-underline p-1 cursor-pointer"
                  role="button"
                  hx-target="#generic-offcanvas"

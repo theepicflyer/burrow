@@ -3,7 +3,7 @@ from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
 from apps.common.middleware.thread_local import get_current_user
-from apps.common.models import OwnedObject
+from apps.common.models import OwnedObject, in_household
 from apps.transactions.validators import validate_decimal_places, validate_non_negative
 
 
@@ -15,6 +15,8 @@ class BudgetManager(models.Manager):
     def get_queryset(self):
         user = get_current_user()
         qs = super().get_queryset()
+        if in_household(user):
+            return qs
         if user and user.is_authenticated:
             return qs.filter(
                 Q(category__visibility="public")

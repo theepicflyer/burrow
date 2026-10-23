@@ -98,6 +98,8 @@ Each app is a Django app under `apps.<name>`. The key ones:
 
 Most user-facing models extend `OwnedObject` or `SharedObject` from `apps/common/models.py`. `SharedObjectManager` is the default `objects` manager and applies the visibility filter (owner + `shared_with`). Use `Model.all_objects` (a vanilla `Manager`) when you need to bypass that, e.g. write paths that explicitly set `owner`. Forgetting this is the most common source of mystery empty querysets.
 
+`HOUSEHOLD_MODE` (env, off by default) makes every signed-in user a co-owner of all data: every visibility manager short-circuits through `in_household(user)` and views check `can_manage(obj, user)` instead of comparing `owner` to `request.user`. A new manager or owner-only check must go through these two helpers. See `docs/MULTI_USER.md`.
+
 ### Templates
 
 - `app/templates/<app>/pages/` — full-page templates rendered by `GET`.
@@ -131,7 +133,7 @@ model was removed in `669ec8ed` — "funds" are now just **`Account`s with `kind
 This app is multi-user/sharing-aware: scoping always goes through the sharing-aware default
 managers (thread-local current user), never `owner=` filters. `Budget` visibility specifically
 follows its category (`BudgetManager`, not the row's own owner). See `docs/MULTI_USER.md` for
-household setup — a second login via Pocket ID OIDC plus bulk-sharing accounts/categories/etc.
+household setup — a second login via Pocket ID OIDC plus `HOUSEHOLD_MODE` (or per-object sharing).
 
 - **`Budget`** (`models.py`): `(category, month, amount)`, month always day=1. For
   **sinking-account categories** this is the monthly auto-allocation override; for

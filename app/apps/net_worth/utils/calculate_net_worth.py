@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from apps.accounts.models import Account
 from apps.common.middleware.thread_local import get_current_user
+from apps.common.models import in_household
 from apps.currencies.models import Currency
 from apps.transactions.models import Transaction
 
@@ -22,12 +23,17 @@ def calculate_historical_currency_net_worth(queryset):
 
     user = get_current_user()
 
+    visible = (
+        Q()
+        if in_household(user)
+        else Q(accounts__visibility="public")
+        | Q(accounts__owner=user)
+        | Q(accounts__shared_with=user)
+        | Q(accounts__visibility="private", accounts__owner=None)
+    )
     currencies = list(
         Currency.objects.filter(
-            Q(accounts__visibility="public")
-            | Q(accounts__owner=user)
-            | Q(accounts__shared_with=user)
-            | Q(accounts__visibility="private", accounts__owner=None),
+            visible,
             accounts__is_archived=False,
             accounts__isnull=False,
             is_archived=False,
