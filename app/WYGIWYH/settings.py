@@ -632,7 +632,8 @@ PWA_APP_ORIENTATION = "any"
 PWA_APP_START_URL = "/"
 PWA_APP_STATUS_BAR_COLOR = "default"
 PWA_APP_ICONS = [
-    {"src": "/static/img/favicon/android-icon-192x192.png", "sizes": "192x192"}
+    {"src": "/static/img/pwa/icon-192x192.png", "sizes": "192x192", "purpose": "any maskable"},
+    {"src": "/static/img/pwa/icon-512x512.png", "sizes": "512x512", "purpose": "any maskable"},
 ]
 PWA_APP_ICONS_APPLE = [
     {"src": "/static/img/favicon/apple-icon-180x180.png", "sizes": "180x180"}
@@ -654,15 +655,22 @@ PWA_APP_SHORTCUTS = [
 ]
 PWA_APP_SCREENSHOTS = [
     {
-        "src": "/static/img/pwa/splash-750x1334.png",
-        "sizes": "750x1334",
+        "src": "/static/img/pwa/screenshot-wide-monthly.png",
+        "sizes": "1600x1000",
         "type": "image/png",
         "form_factor": "wide",
     },
     {
-        "src": "/static/img/pwa/splash-750x1334.png",
-        "sizes": "750x1334",
+        "src": "/static/img/pwa/screenshot-phone-monthly.png",
+        "sizes": "585x1266",
         "type": "image/png",
+        "form_factor": "narrow",
+    },
+    {
+        "src": "/static/img/pwa/screenshot-phone-budget.png",
+        "sizes": "585x1266",
+        "type": "image/png",
+        "form_factor": "narrow",
     },
 ]
 PWA_SERVICE_WORKER_PATH = BASE_DIR / "templates" / "pwa" / "serviceworker.js"
