@@ -1,4 +1,5 @@
-{% load i18n %}
+{% load i18n settings %}
+{% settings "HOUSEHOLD_MODE" as household_mode %}
 {% if active %}
   <div class="show-loading" hx-get="{% url 'entities_table_active' %}" hx-trigger="updated from:window"
        hx-swap="outerHTML">
@@ -36,7 +37,7 @@
                      hx-get="{% url 'entity_take_ownership' entity_id=entity.id %}">
                     <i class="fa-solid fa-crown fa-fw"></i></a>
                 {% endif %}
-                {% if user == entity.owner %}
+                {% if user == entity.owner and not household_mode %}
                   <a class="btn btn-secondary btn-sm join-item"
                      role="button"
                      hx-target="#generic-offcanvas"

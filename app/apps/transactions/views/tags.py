@@ -8,7 +8,7 @@ from django.views.decorators.http import require_http_methods
 from apps.common.decorators.htmx import only_htmx
 from apps.transactions.forms import TransactionTagForm
 from apps.transactions.models import TransactionTag
-from apps.common.models import SharedObject
+from apps.common.models import SharedObject, can_manage
 from apps.common.forms import SharedObjectForm
 
 
@@ -87,7 +87,7 @@ def tag_add(request, **kwargs):
 def tag_edit(request, tag_id):
     tag = get_object_or_404(TransactionTag, id=tag_id)
 
-    if tag.owner and tag.owner != request.user:
+    if not can_manage(tag, request.user):
         messages.error(request, _("Only the owner can edit this"))
 
         return HttpResponse(
@@ -125,7 +125,7 @@ def tag_edit(request, tag_id):
 def tag_delete(request, tag_id):
     tag = get_object_or_404(TransactionTag, id=tag_id)
 
-    if tag.owner != request.user and request.user in tag.shared_with.all():
+    if not can_manage(tag, request.user) and request.user in tag.shared_with.all():
         tag.shared_with.remove(request.user)
         messages.success(request, _("Item no longer shared with you"))
     else:
@@ -167,7 +167,7 @@ def tag_take_ownership(request, tag_id):
 def tag_share(request, pk):
     obj = get_object_or_404(TransactionTag, id=pk)
 
-    if obj.owner and obj.owner != request.user:
+    if not can_manage(obj, request.user):
         messages.error(request, _("Only the owner can edit this"))
 
         return HttpResponse(

@@ -1,4 +1,5 @@
-{% load i18n %}
+{% load i18n settings %}
+{% settings "HOUSEHOLD_MODE" as household_mode %}
 <c-ui.fab-single-action
     url="{% url 'account_group_add' %}"
     hx_target="#generic-offcanvas">
@@ -39,7 +40,7 @@
                          hx-get="{% url 'account_group_take_ownership' pk=account_group.id %}">
                         <i class="fa-solid fa-crown fa-fw"></i></a>
                     {% endif %}
-                    {% if user == account_group.owner %}
+                    {% if user == account_group.owner and not household_mode %}
                       <a class="btn btn-secondary btn-sm join-item"
                          role="button"
                          hx-target="#generic-offcanvas"

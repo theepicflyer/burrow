@@ -8,7 +8,7 @@ from django.views.decorators.http import require_http_methods
 from apps.accounts.forms import AccountGroupForm
 from apps.accounts.models import AccountGroup
 from apps.common.decorators.htmx import only_htmx
-from apps.common.models import SharedObject
+from apps.common.models import SharedObject, can_manage
 from apps.common.forms import SharedObjectForm
 
 
@@ -65,7 +65,7 @@ def account_group_add(request, **kwargs):
 def account_group_edit(request, pk):
     account_group = get_object_or_404(AccountGroup, id=pk)
 
-    if account_group.owner and account_group.owner != request.user:
+    if not can_manage(account_group, request.user):
         messages.error(request, _("Only the owner can edit this"))
 
         return HttpResponse(
@@ -104,7 +104,7 @@ def account_group_delete(request, pk):
     account_group = get_object_or_404(AccountGroup, id=pk)
 
     if (
-        account_group.owner != request.user
+        not can_manage(account_group, request.user)
         and request.user in account_group.shared_with.all()
     ):
         account_group.shared_with.remove(request.user)
@@ -148,7 +148,7 @@ def account_group_take_ownership(request, pk):
 def account_group_share(request, pk):
     obj = get_object_or_404(AccountGroup, id=pk)
 
-    if obj.owner and obj.owner != request.user:
+    if not can_manage(obj, request.user):
         messages.error(request, _("Only the owner can edit this"))
 
         return HttpResponse(

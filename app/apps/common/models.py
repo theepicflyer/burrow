@@ -6,11 +6,23 @@ from django.utils.translation import gettext_lazy as _
 from apps.common.middleware.thread_local import get_current_user
 
 
+def in_household(user):
+    """With HOUSEHOLD_MODE on, every signed-in user co-owns all data."""
+    return bool(settings.HOUSEHOLD_MODE and user is not None and user.is_authenticated)
+
+
+def can_manage(obj, user):
+    return obj.owner is None or obj.owner == user or in_household(user)
+
+
 class SharedObjectManager(models.Manager):
     def get_queryset(self):
         """Return only objects the user can access"""
         user = get_current_user()
         base_qs = super().get_queryset()
+
+        if in_household(user):
+            return base_qs
 
         if user and user.is_authenticated:
             return base_qs.filter(
@@ -77,6 +89,9 @@ class OwnedObjectManager(models.Manager):
         """Return only objects the user can access"""
         user = get_current_user()
         base_qs = super().get_queryset()
+
+        if in_household(user):
+            return base_qs
 
         if user and user.is_authenticated:
             return base_qs.filter(Q(owner=user) | Q(owner=None)).distinct()

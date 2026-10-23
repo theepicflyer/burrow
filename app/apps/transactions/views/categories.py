@@ -8,7 +8,7 @@ from django.views.decorators.http import require_http_methods
 from apps.common.decorators.htmx import only_htmx
 from apps.transactions.forms import TransactionCategoryForm
 from apps.transactions.models import TransactionCategory
-from apps.common.models import SharedObject
+from apps.common.models import SharedObject, can_manage
 from apps.common.forms import SharedObjectForm
 
 
@@ -87,7 +87,7 @@ def category_add(request, **kwargs):
 def category_edit(request, category_id):
     category = get_object_or_404(TransactionCategory, id=category_id)
 
-    if category.owner and category.owner != request.user:
+    if not can_manage(category, request.user):
         messages.error(request, _("Only the owner can edit this"))
 
         return HttpResponse(
@@ -125,7 +125,7 @@ def category_edit(request, category_id):
 def category_share(request, pk):
     obj = get_object_or_404(TransactionCategory, id=pk)
 
-    if obj.owner and obj.owner != request.user:
+    if not can_manage(obj, request.user):
         messages.error(request, _("Only the owner can edit this"))
 
         return HttpResponse(
@@ -163,7 +163,10 @@ def category_share(request, pk):
 def category_delete(request, category_id):
     category = get_object_or_404(TransactionCategory, id=category_id)
 
-    if category.owner != request.user and request.user in category.shared_with.all():
+    if (
+        not can_manage(category, request.user)
+        and request.user in category.shared_with.all()
+    ):
         category.shared_with.remove(request.user)
         messages.success(request, _("Item no longer shared with you"))
     else:

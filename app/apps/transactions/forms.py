@@ -36,6 +36,15 @@ from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
 
+def _default_account():
+    """The user's Main (NORMAL) account, else the first visible one (a household
+    member who owns no accounts books onto the shared Main)."""
+    accounts = Account.objects.filter(
+        kind=Account.Kind.NORMAL, is_archived=False
+    ).order_by("id")
+    return accounts.filter(owner=get_current_user()).first() or accounts.first()
+
+
 class TransactionForm(forms.ModelForm):
     category = DynamicModelChoiceField(
         create_field="name",
@@ -118,15 +127,7 @@ class TransactionForm(forms.ModelForm):
             # Default to the user's Main (NORMAL) account; if category is set on
             # submit, clean() overrides with category.account.
             self.fields["account"].queryset = Account.all_objects.all()
-            default = (
-                Account.objects.filter(
-                    owner=get_current_user(),
-                    kind=Account.Kind.NORMAL,
-                    is_archived=False,
-                )
-                .order_by("id")
-                .first()
-            )
+            default = _default_account()
             if default:
                 self.fields["account"].initial = default
 
@@ -244,15 +245,7 @@ class TransactionForm(forms.ModelForm):
             cleaned_data["account"] = category.account
             self.instance.account = category.account
         elif not cleaned_data.get("account"):
-            default = (
-                Account.objects.filter(
-                    owner=get_current_user(),
-                    kind=Account.Kind.NORMAL,
-                    is_archived=False,
-                )
-                .order_by("id")
-                .first()
-            )
+            default = _default_account()
             if default:
                 cleaned_data["account"] = default
                 self.instance.account = default
@@ -351,15 +344,7 @@ class QuickTransactionForm(forms.ModelForm):
             ).distinct()
         else:
             self.fields["account"].queryset = Account.all_objects.all()
-            default = (
-                Account.objects.filter(
-                    owner=get_current_user(),
-                    kind=Account.Kind.NORMAL,
-                    is_archived=False,
-                )
-                .order_by("id")
-                .first()
-            )
+            default = _default_account()
             if default:
                 self.fields["account"].initial = default
 
@@ -812,15 +797,7 @@ class InstallmentPlanForm(forms.ModelForm):
             ).distinct()
         else:
             self.fields["account"].queryset = Account.all_objects.all()
-            default = (
-                Account.objects.filter(
-                    owner=get_current_user(),
-                    kind=Account.Kind.NORMAL,
-                    is_archived=False,
-                )
-                .order_by("id")
-                .first()
-            )
+            default = _default_account()
             if default:
                 self.fields["account"].initial = default
 
@@ -1087,7 +1064,7 @@ class RecurringTransactionForm(forms.ModelForm):
             ).distinct()
         else:
             self.fields["account"].queryset = Account.objects.filter(is_archived=False)
-            
+
             user_settings = get_current_user().settings
             if user_settings.default_account:
                 self.fields["account"].initial = user_settings.default_account
@@ -1168,15 +1145,7 @@ class RecurringTransactionForm(forms.ModelForm):
             cleaned_data["account"] = category.account
             self.instance.account = category.account
         elif not cleaned_data.get("account"):
-            default = (
-                Account.objects.filter(
-                    owner=get_current_user(),
-                    kind=Account.Kind.NORMAL,
-                    is_archived=False,
-                )
-                .order_by("id")
-                .first()
-            )
+            default = _default_account()
             if default:
                 cleaned_data["account"] = default
                 self.instance.account = default
