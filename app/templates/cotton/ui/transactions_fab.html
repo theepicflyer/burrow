@@ -1,20 +1,23 @@
 {% load i18n %}
 <c-components.fab>
+  {# Income / Expense: full-page paged UI on mobile (<lg), htmx offcanvas on desktop. #}
   <c-components.fab_menu_button
             color="success"
             hx_target="#generic-offcanvas"
-            hx_trigger="click, add_income from:window"
+            hx_trigger="click[window.innerWidth>=1024], add_income from:window"
             hx_vals='{"year": {{ year }}, {% if month %}"month": {{ month }},{% endif %} "type": "IN"}'
             url="{% url 'transaction_add' %}"
+            href="{% url 'transaction_simple_add' %}?type=IN{% if year %}&year={{ year }}{% endif %}{% if month %}&month={{ month }}{% endif %}"
             icon="fa-solid fa-arrow-right-to-bracket"
             title="{% translate "Income" %}"></c-components.fab_menu_button>
 
   <c-components.fab_menu_button
             color="error"
             hx_target="#generic-offcanvas"
-            hx_trigger="click, add_income from:window"
+            hx_trigger="click[window.innerWidth>=1024], add_income from:window"
             hx_vals='{"year": {{ year }}, {% if month %}"month": {{ month }},{% endif %} "type": "EX"}'
             url="{% url 'transaction_add' %}"
+            href="{% url 'transaction_simple_add' %}?type=EX{% if year %}&year={{ year }}{% endif %}{% if month %}&month={{ month }}{% endif %}"
             icon="fa-solid fa-arrow-right-from-bracket"
             title="{% translate "Expense" %}"></c-components.fab_menu_button>
 

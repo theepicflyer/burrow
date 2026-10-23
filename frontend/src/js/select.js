@@ -33,6 +33,12 @@ window.TomSelect = function createDynamicTomSelect(element) {
         },
 
         onInitialize: function () {
+            // Suppress the virtual keyboard on touch devices — tags/category/entities
+            // and other tom-select dropdowns are pure pick-lists on mobile, not search.
+            if (window.matchMedia('(pointer: coarse)').matches && this.control_input) {
+                this.control_input.setAttribute('inputmode', 'none');
+                this.control_input.setAttribute('readonly', 'readonly');
+            }
             this.popper = Popper.createPopper(this.control, this.dropdown, {
                 placement: "bottom-start",
                 modifiers: [

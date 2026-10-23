@@ -1,6 +1,10 @@
 {% load i18n %}
-<div class="offcanvas-header flex justify-between items-center border-b border-base-content/10 bg-base-300">
-  <h5 class="offcanvas-title font-medium">{% block title %}{% endblock %}</h5>
+<div class="offcanvas-header flex justify-between items-center border-b-2 border-(--line) bg-base-100">
+  {# Burrow: sheets are where things get edited, which is Kayu's job. #}
+  <div class="flex items-center gap-2 min-w-0">
+    <c-burrow.mascot who="kayu" mood="happy" size="36" />
+    <h5 class="offcanvas-title bh-section-title truncate">{% block title %}{% endblock %}</h5>
+  </div>
   <button type="button" class="btn btn-ghost btn-sm btn-circle" aria-label="{% trans 'Close' %}" data-bs-dismiss="offcanvas"><i class="fa-solid fa-xmark"></i></button>
 </div>
 <div id="generic-offcanvas-body" class="offcanvas-body"

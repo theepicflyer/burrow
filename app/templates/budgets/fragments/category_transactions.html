@@ -1,0 +1,24 @@
+{% extends 'extends/offcanvas.html' %}
+{% load i18n %}
+{% load month_name %}
+
+{% block title %}{{ category.name }} · {{ month|month_name }} {{ year }}{% endblock %}
+
+{% block body %}
+  <div class="flex flex-wrap gap-2 mb-3 text-sm">
+    <span class="badge badge-error badge-soft">
+      {% translate "Spent" %}&nbsp;<span class="tabular-nums">{{ spent|floatformat:2 }}</span>
+    </span>
+    {% if received %}
+      <span class="badge badge-success badge-soft">
+        {% translate "Received" %}&nbsp;<span class="tabular-nums">{{ received|floatformat:2 }}</span>
+      </span>
+    {% endif %}
+  </div>
+  {% for transaction in transactions %}
+    <c-transaction.item :transaction="transaction" dummy disable-selection></c-transaction.item>
+  {% empty %}
+    <c-msg.empty title="{% translate 'No transactions this month' %}"
+                 icon="fa-solid fa-receipt"></c-msg.empty>
+  {% endfor %}
+{% endblock %}

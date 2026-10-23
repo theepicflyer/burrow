@@ -43,6 +43,7 @@ class AccountSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "name",
+            "kind",
             "group",
             "group_id",
             "currency",
@@ -51,6 +52,7 @@ class AccountSerializer(serializers.ModelSerializer):
             "exchange_currency_id",
             "is_asset",
         ]
+        read_only_fields = ["kind"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

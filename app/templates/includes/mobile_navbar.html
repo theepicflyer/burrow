@@ -3,10 +3,11 @@
 {% load static %}
 {% load i18n %}
 {% load active_link %}
-<nav class="navbar border-b-2 border-base-100 bg-base-200 flex lg:hidden shadow-lg" hx-boost="true">
+<nav class="navbar border-b-2 border-(--line) bg-base-100 flex lg:hidden" hx-boost="true">
   <div class="container flex justify-between items-center w-full">
-    <a class="text-xl font-bold text-primary" href="{% url 'index' %}">
-      <div class="logo mobile"></div>
+    <a class="bh-brand" href="{% url 'index' %}">
+      <c-burrow.mascot who="kacang" mood="happy" size="40" class="bh-brand__mark" />
+      <span class="bh-brand__name">WYGIWYH</span>
     </a>
     <button class="btn btn-ghost lg:hidden" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar"
             aria-controls="sidebar" aria-label={% translate "Toggle navigation" %}>

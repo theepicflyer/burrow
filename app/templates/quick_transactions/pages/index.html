@@ -10,11 +10,10 @@
         hx_target="#generic-offcanvas">
 </c-ui.fab-single-action>
 <div class="container px-md-3 py-3 column-gap-5">
-  <div class="text-3xl font-bold font-mono w-full mb-3">
-    {% spaceless %}
-    <div>{% translate 'Quick Transactions' %}</div>
-    {% endspaceless %}
-  </div>
+  <c-burrow.habitat kind="oak" mood="happy">
+    <div class="bh-habitat__eyebrow">{% translate 'Transactions' %}</div>
+    <h1 class="bh-page-title">{% translate 'Quick Transactions' %}</h1>
+  </c-burrow.habitat>
 
   <div id="quick-transactions-table" class="show-loading" hx-get="{% url 'quick_transactions_list' %}" hx-trigger="load, updated from:window"></div>
 </div>

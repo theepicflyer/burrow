@@ -12,11 +12,11 @@
       hx-boost="true"
       hx-swap="transition:true"
       data-bs-scroll="true"
-      class="offcanvas-lg offcanvas-start lg:flex flex-col fixed top-0 left-0 h-full bg-base-300! border-e-2 border-base-100 lg:group-hover:shadow-[5px_0px_10px_-2px_rgba(0,0,0,0.2)] z-1045">
-    <div class="hidden lg:flex items-center justify-between border-b border-base-content/10 sidebar-submenu-header">
-      <a href="{% url 'index' %}" class="m-0 hidden lg:flex justify-start p-4 no-underline sidebar-title">
-         <div class="logo"></div>
-        <span class="text-2xl font-bold ml-3">WYGIWYH</span>
+      class="offcanvas-lg offcanvas-start lg:flex flex-col fixed top-0 left-0 h-full bg-base-100! border-e-2 border-(--line) lg:group-hover:shadow-[5px_0px_10px_-2px_rgba(0,0,0,0.2)] z-1045">
+    <div class="hidden lg:flex items-center justify-between border-b-2 border-(--line) sidebar-submenu-header">
+      <a href="{% url 'index' %}" class="m-0 hidden lg:flex justify-start py-3 px-3 no-underline sidebar-title bh-brand">
+        <c-burrow.mascot who="kacang" mood="happy" size="40" class="bh-brand__mark" />
+        <span class="bh-brand__name">WYGIWYH</span>
       </a>
 
       <button
@@ -35,10 +35,10 @@
       </button>
     </div>
 
-    <div class="lg:hidden flex justify-between items-center p-4 text-base-content border-b border-base-content/10">
-      <a href="{% url 'index' %}" class="flex justify-start no-underline">
-        <div class="logo"></div>
-        <span class="text-2xl font-bold ml-3">WYGIWYH</span>
+    <div class="lg:hidden flex justify-between items-center p-4 text-base-content border-b-2 border-(--line)">
+      <a href="{% url 'index' %}" class="bh-brand">
+        <c-burrow.mascot who="kacang" mood="happy" size="40" class="bh-brand__mark" />
+        <span class="bh-brand__name">WYGIWYH</span>
       </a>
       <button type="button" class="btn btn-ghost btn-sm btn-circle" data-bs-target="#sidebar" data-bs-dismiss="offcanvas"
               aria-label={% translate 'Close' %}><i class="fa-solid fa-xmark"></i></button>
@@ -77,6 +77,18 @@
           active="net_worth"
           icon="fa-solid fa-money-bill">
       </c-components.sidebar-menu-item>
+      <c-components.sidebar-menu-item
+          title="{% translate 'Budgets' %}"
+          url='budgets_edit'
+          active="budgets_edit"
+          icon="fa-solid fa-coins">
+      </c-components.sidebar-menu-item>
+      <c-components.sidebar-menu-item
+          title="{% translate 'Budget Analysis' %}"
+          url='budgets_analysis'
+          active="budgets_analysis||budgets_analysis_month"
+          icon="fa-solid fa-chart-line">
+      </c-components.sidebar-menu-item>
 
       <c-components.sidebar-menu-header title="{% translate 'Transactions' %}"></c-components.sidebar-menu-header>
       <c-components.sidebar-menu-item
@@ -114,12 +126,14 @@
       </c-components.sidebar-menu-item>
 
       <c-components.sidebar-menu-header title="{% translate 'Tools' %}"></c-components.sidebar-menu-header>
+      {# DCA hidden from nav (routes still available); revisit when needed.
       <c-components.sidebar-menu-item
           title="{% translate 'Dollar Cost Average Tracker' %}"
           url='dca_strategy_index'
           active="dca_strategy_index||dca_strategy_detail_index"
           icon="fa-solid fa-magnifying-glass-chart">
       </c-components.sidebar-menu-item>
+      #}
       <c-components.sidebar-menu-item
           title="{% translate 'Unit Price Calculator' %}"
           url='unit_price_calculator'

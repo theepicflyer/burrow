@@ -1,0 +1,25 @@
+{% load active_link %}
+{% load i18n %}
+{# Burrow BottomNav (phones only): a floating pill; the page's add button (.fab) docks in the centre gap. #}
+<div class="bh-bottomnav lg:hidden" hx-boost="true">
+  <c-burrow.mascot who="kacang" mood="happy" size="56" class="bh-bottomnav__peek" />
+  <nav class="bh-nav" aria-label="{% translate 'Main' %}">
+    <a class="bh-nav__item {% active_link views='monthly_overview' css_class='is-active' %}" href="{% url 'monthly_index' %}">
+      <span class="bh-nav__pill"><i class="fa-solid fa-house"></i></span>
+      <span class="bh-nav__label">{% translate 'Monthly' %}</span>
+    </a>
+    <a class="bh-nav__item {% active_link views='transactions_all_index' css_class='is-active' %}" href="{% url 'transactions_all_index' %}">
+      <span class="bh-nav__pill"><i class="fa-solid fa-right-left"></i></span>
+      <span class="bh-nav__label">{% translate 'History' %}</span>
+    </a>
+    <span class="bh-bottomnav__gap" aria-hidden="true"></span>
+    <a class="bh-nav__item {% active_link views='budgets_edit||budgets_analysis||budgets_analysis_month' css_class='is-active' %}" href="{% url 'budgets_analysis' %}">
+      <span class="bh-nav__pill"><i class="fa-solid fa-chart-line"></i></span>
+      <span class="bh-nav__label">{% translate 'Budgets' %}</span>
+    </a>
+    <button type="button" class="bh-nav__item" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-controls="sidebar">
+      <span class="bh-nav__pill"><i class="fa-solid fa-bars"></i></span>
+      <span class="bh-nav__label">{% translate 'More' %}</span>
+    </button>
+  </nav>
+</div>

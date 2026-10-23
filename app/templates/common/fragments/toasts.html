@@ -2,25 +2,31 @@
 {% load toast_bg %}
 {% if messages %}
   {% for message in messages %}
-      <div class="toasty alert alert-{{ message.tags | toast_bg }}"
+    {% with level=message.tags|toast_bg %}
+      {# Burrow Toast: an ink pill, the animal carries the mood (Kayu fixes errors, Kacang minds money, Gali the rest). #}
+      <div class="toasty bh-toast bh-toast--{{ level }}"
            role="alert"
            aria-live="assertive"
            aria-atomic="true">
-          <div class="flex items-center justify-between w-full">
-              <div class="flex items-center gap-2">
-                  <i class="{{ message.tags | toast_icon }} fa-fw"></i>
-                  <div>
-                      <strong>{{ message.tags | toast_title }}</strong>
-                      <div>{{ message }}</div>
-                  </div>
-              </div>
-              <button type="button"
-                      class="btn btn-ghost btn-sm btn-circle"
-                      _="on click remove closest .toasty"
-                      aria-label={% translate 'Close' %}>
-                  <i class="fa-solid fa-xmark"></i>
-              </button>
-          </div>
+        <span class="bh-toast__bub">
+          {% if level == "error" %}
+            <c-burrow.mascot who="kayu" mood="worried" size="40" />
+          {% elif level == "warning" %}
+            <c-burrow.mascot who="kacang" mood="worried" size="40" />
+          {% elif level == "success" %}
+            <c-burrow.mascot who="kacang" mood="joy" size="40" />
+          {% else %}
+            <c-burrow.mascot who="gali" mood="happy" size="40" />
+          {% endif %}
+        </span>
+        <span class="bh-toast__text"><span class="sr-only">{{ message.tags|toast_title }}: </span>{{ message }}</span>
+        <button type="button"
+                class="btn btn-ghost btn-sm btn-circle"
+                _="on click remove closest .toasty"
+                aria-label={% translate 'Close' %}>
+          <i class="fa-solid fa-xmark"></i>
+        </button>
       </div>
+    {% endwith %}
   {% endfor %}
 {% endif %}

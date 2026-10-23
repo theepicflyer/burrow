@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     "apps.transactions.apps.TransactionsConfig",
     "apps.currencies.apps.CurrenciesConfig",
     "apps.accounts.apps.AccountsConfig",
+    "apps.budgets.apps.BudgetsConfig",
     "apps.net_worth.apps.NetWorthConfig",
     "apps.import_app.apps.ImportConfig",
     "apps.export_app.apps.ExportConfig",
@@ -72,6 +73,11 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework.authtoken",
     "drf_spectacular",
+    # Self-hosted Swagger UI / ReDoc assets (no third-party CDN). See
+    # SPECTACULAR_SETTINGS below.
+    "drf_spectacular_sidecar",
+    "oauth2_provider",
+    "mcp_server",
     "django_cotton",
     "apps.rules.apps.RulesConfig",
     "apps.calendar_view.apps.CalendarViewConfig",
@@ -82,6 +88,7 @@ INSTALLED_APPS = [
     "allauth.socialaccount",
     "allauth.socialaccount.providers.openid_connect",
     "apps.common.apps.CommonConfig",
+    "apps.mcp.apps.McpConfig",
 ]
 
 SITE_ID = 1
@@ -91,6 +98,7 @@ MIDDLEWARE = [
     "apps.common.middleware.thread_local.ThreadLocalMiddleware",
     "debug_toolbar.middleware.DebugToolbarMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "apps.common.middleware.security_headers.ContentSecurityPolicyMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.locale.LocaleMiddleware",
@@ -388,13 +396,29 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = [
 ]
 CRISPY_TEMPLATE_PACK = "crispy-daisyui"
 
+HTTPS_ENABLED = os.getenv("HTTPS_ENABLED", "false").lower() == "true"
+
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SESSION_COOKIE_AGE = int(os.getenv("SESSION_EXPIRY_TIME", 2678400))  # 31 days
-SESSION_COOKIE_SECURE = os.getenv("HTTPS_ENABLED", "false").lower() == "true"
+# Only ship the auth/CSRF cookies over HTTPS when TLS is enabled. CSRF mirrors
+# the session cookie so a logged-out page never sets a non-Secure csrftoken in
+# a production (HTTPS) deployment.
+SESSION_COOKIE_SECURE = HTTPS_ENABLED
+CSRF_COOKIE_SECURE = HTTPS_ENABLED
 
-HTTPS_ENABLED = os.getenv("HTTPS_ENABLED", "false").lower() == "true"
 ACCOUNT_DEFAULT_HTTP_PROTOCOL = "https" if HTTPS_ENABLED else "http"
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https") if HTTPS_ENABLED else None
+
+# HTTP Strict Transport Security. Only emitted when TLS is on (django's
+# SecurityMiddleware skips it on plain HTTP anyway). includeSubDomains and
+# preload are env-gated because they affect every subdomain of the apex and are
+# hard to walk back — enable them only once every subdomain is HTTPS-ready.
+if HTTPS_ENABLED:
+    SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", 31536000))  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = (
+        os.getenv("SECURE_HSTS_INCLUDE_SUBDOMAINS", "false").lower() == "true"
+    )
+    SECURE_HSTS_PRELOAD = os.getenv("SECURE_HSTS_PRELOAD", "false").lower() == "true"
 
 DEBUG_TOOLBAR_CONFIG = {
     "ROOT_TAG_EXTRA_ATTRS": "hx-preserve",
@@ -434,10 +458,18 @@ if DEBUG:
 
 
 REST_FRAMEWORK = {
-    # Use Django's standard `django.contrib.auth` permissions,
-    # or allow read-only access for unauthenticated users.
+    # Require authentication by default so anonymous requests are rejected with
+    # a clean 401/403 *before* any queryset or business logic runs. Endpoints
+    # that are intentionally public (none under /api/ today) must opt out
+    # explicitly with their own permission_classes.
     "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
         "apps.api.permissions.NotInDemoMode",
+        "apps.api.permissions.TokenScopePermission",
+        # OAuth counterpart of TokenScopePermission; both no-op unless the
+        # request was authenticated by their respective token type. See
+        # apps.mcp.permissions.OAuthScopePermission.
+        "apps.mcp.permissions.OAuthScopePermission",
         "rest_framework.permissions.DjangoModelPermissions",
     ],
     'DEFAULT_FILTER_BACKENDS': [
@@ -447,6 +479,10 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.BasicAuthentication',
         'rest_framework.authentication.SessionAuthentication',
+        # Must precede the built-in TokenAuthentication: both use the "Token"
+        # keyword; our class returns None on a key miss so a built-in authtoken
+        # key still falls through to it.
+        'apps.api.authentication.APITokenAuthentication',
         'rest_framework.authentication.TokenAuthentication',
     ],
     "DEFAULT_PAGINATION_CLASS": "apps.api.custom.pagination.CustomPageNumberPagination",
@@ -458,7 +494,62 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "A no-frills expense tracker",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
-    # OTHER SETTINGS
+    # Serve the OpenAPI schema and the Swagger UI / ReDoc docs only to
+    # authenticated users. The schema describes private endpoints and the docs
+    # are an internal tool, so there is no reason to expose either anonymously.
+    "SERVE_PERMISSIONS": ["rest_framework.permissions.IsAuthenticated"],
+    # Self-host the Swagger UI / ReDoc assets (shipped by drf-spectacular-sidecar
+    # and collected by whitenoise) instead of pulling swagger-ui-dist@latest from
+    # cdn.jsdelivr.net. Loading third-party "@latest" JS on our own origin means a
+    # CDN/package compromise could run same-origin script in a logged-in browser.
+    "SWAGGER_UI_DIST": "SIDECAR",
+    "SWAGGER_UI_FAVICON_HREF": "SIDECAR",
+    "REDOC_DIST": "SIDECAR",
+}
+
+# MCP (Model Context Protocol) adapter — see apps/mcp/ and docs/MCP.md.
+# Stateless streamable-HTTP so it works under the WSGI/gunicorn runtime.
+# Tools proxy in-process to the existing DRF ViewSets, so per-tool scope is
+# enforced by each ViewSet's permission_classes (TokenScopePermission etc.).
+DJANGO_MCP_GLOBAL_SERVER_CONFIG = {
+    "name": "WYGIWYH",
+    "stateless": True,
+}
+# Authentication on the /mcp endpoint itself. Reuses the project's API-token
+# auth so `Authorization: Token <key>` works exactly as it does for /api/.
+# (PR2 will add OAuth bearer auth to this same list.) Setting this also makes
+# django-mcp-server require an authenticated user at the endpoint.
+DJANGO_MCP_AUTHENTICATION_CLASSES = [
+    "apps.api.authentication.APITokenAuthentication",
+    "rest_framework.authentication.TokenAuthentication",
+    # OAuth Bearer auth for the claude.ai web connector (PR2). Whatever
+    # authenticates the outer /mcp request is what the per-tool permission
+    # sees (see apps/mcp/mcp.py shim), so an OAuth AccessToken here flows
+    # through to OAuthScopePermission on each tool.
+    "oauth2_provider.contrib.rest_framework.OAuth2Authentication",
+    "rest_framework.authentication.SessionAuthentication",
+]
+# The MCP server only exposes the get-instructions helper tool when this is on;
+# we provide our own tools, so keep it off to avoid an extra surprise tool.
+DJANGO_MCP_GET_SERVER_INSTRUCTIONS_TOOL = False
+
+# OAuth 2.1 for the claude.ai MCP web connector. django-oauth-toolkit supplies
+# the authorize/token endpoints, PKCE and token storage; the discovery docs and
+# CIMD client resolution are hand-built in apps/mcp/oauth.py. See docs/MCP.md.
+OAUTH2_PROVIDER = {
+    "OAUTH2_VALIDATOR_CLASS": "apps.mcp.oauth.MCPOAuth2Validator",
+    "PKCE_REQUIRED": True,  # OAuth 2.1 / MCP spec MUST
+    "ALLOWED_REDIRECT_URI_SCHEMES": ["https", "http"],
+    "SCOPES": {
+        "mcp:read": "Read your tracker data",
+        "mcp:write": "Create, modify and delete your tracker data",
+    },
+    "DEFAULT_SCOPES": ["mcp:read", "mcp:write"],
+    "READ_SCOPE": "mcp:read",
+    "WRITE_SCOPE": "mcp:write",
+    "ACCESS_TOKEN_EXPIRE_SECONDS": 60 * 60 * 8,  # 8h
+    "REFRESH_TOKEN_EXPIRE_SECONDS": 60 * 60 * 24 * 30,  # 30d
+    "ROTATE_REFRESH_TOKEN": True,
 }
 
 if "procrastinate" in sys.argv:
@@ -530,8 +621,8 @@ PROCRASTINATE_ON_APP_READY = "apps.common.procrastinate.on_app_ready"
 # PWA
 PWA_APP_NAME = SITE_TITLE
 PWA_APP_DESCRIPTION = "A simple and powerful finance tracker"
-PWA_APP_THEME_COLOR = "#fbb700"
-PWA_APP_BACKGROUND_COLOR = "#222222"
+PWA_APP_THEME_COLOR = "#1d1828"  # Burrow paper (dark)
+PWA_APP_BACKGROUND_COLOR = "#1d1828"
 PWA_APP_DISPLAY = "standalone"
 PWA_APP_SCOPE = "/"
 PWA_APP_ORIENTATION = "any"

@@ -26,7 +26,20 @@ class AccountGroup(SharedObject):
 
 
 class Account(SharedObject):
+    class Kind(models.TextChoices):
+        NORMAL = "normal", _("Normal")
+        SINKING = "sinking", _("Sinking fund")
+
     name = models.CharField(max_length=255, verbose_name=_("Name"))
+    kind = models.CharField(
+        max_length=16,
+        choices=Kind.choices,
+        default=Kind.NORMAL,
+        verbose_name=_("Kind"),
+        help_text=_(
+            "Sinking accounts receive monthly auto-allocations from a main account."
+        ),
+    )
     group = models.ForeignKey(
         AccountGroup,
         on_delete=models.SET_NULL,

@@ -59,25 +59,25 @@
                           {
                               label: "{% trans 'Projected Expenses' %}",
                               data: currencyData.datasets[3].data,
-                              backgroundColor: '#f8717180',
+                              backgroundColor: burrowAlpha(burrowColors().tomato, 0.5),
                               stack: 'stack0'
                           },
                           {
                               label: "{% trans 'Current Expenses' %}",
                               data: currencyData.datasets[1].data,
-                              backgroundColor: '#f87171',
+                              backgroundColor: burrowColors().tomato,
                               stack: 'stack0'
                           },
                           {
                               label: "{% trans 'Current Income' %}",
                               data: currencyData.datasets[0].data,
-                              backgroundColor: '#4dde80',
+                              backgroundColor: burrowColors().mint,
                               stack: 'stack0'
                           },
                           {
                               label: "{% trans 'Projected Income' %}",
                               data: currencyData.datasets[2].data,
-                              backgroundColor: '#4dde8080',
+                              backgroundColor: burrowAlpha(burrowColors().mint, 0.5),
                               stack: 'stack0'
                           },
 

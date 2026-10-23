@@ -1,0 +1,6 @@
+{% load static %}
+<c-vars name="acorn" size="24" class="" />
+{# A Burrow trace (acorn, leaf, footprint, twig...). Decorative. #}
+{% with "img/burrow/traces/"|add:name|add:".svg" as art %}
+  <img class="bh-trace {{ class }}" src="{% static art %}" width="{{ size }}" height="{{ size }}" alt="" aria-hidden="true">
+{% endwith %}

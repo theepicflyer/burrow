@@ -1,0 +1,22 @@
+{% load i18n %}
+{% load l10n %}
+{% load static %}
+<c-vars label="" value_text="" percent="0" over="" cap="acorn" class="" />
+{#
+  Burrow Meter: a sticker track that fills to `percent` (0-100+, clamped) and ends in a trace.
+  Going over is information, not failure: the fill turns tomato and the value says "over".
+#}
+<div class="bh-meter {% if over %}is-over{% endif %} {{ class }}" style="--pct: {{ percent|unlocalize }}%">
+  {% if label or value_text %}
+    <div class="bh-meter__top">
+      <span class="bh-meter__label">{{ label }}</span>
+      <span class="bh-meter__value">{{ value_text }}{% if over %}<span class="bh-meter__over"> {% translate "over" %}</span>{% endif %}</span>
+    </div>
+  {% endif %}
+  <div class="bh-meter__rail">
+    <div class="bh-meter__track" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ percent|unlocalize }}" aria-label="{{ label }}">
+      <div class="bh-meter__fill"></div>
+    </div>
+    {% if cap %}<c-burrow.trace :name="cap" size="24" class="bh-meter__cap" />{% endif %}
+  </div>
+</div>

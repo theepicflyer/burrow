@@ -32,6 +32,7 @@ urlpatterns = [
     path("", include("pwa.urls")),
     # path("api/", include("rest_framework.urls")),
     path("api/", include("apps.api.urls")),
+    path("", include("apps.mcp.urls")),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "api/docs/",
@@ -50,6 +51,7 @@ urlpatterns = [
     path("", include("apps.users.urls")),
     path("", include("apps.accounts.urls")),
     path("", include("apps.net_worth.urls")),
+    path("", include("apps.budgets.urls")),
     path("", include("apps.monthly_overview.urls")),
     path("", include("apps.yearly_overview.urls")),
     path("", include("apps.currencies.urls")),

@@ -62,7 +62,8 @@ class TransactionForm(forms.ModelForm):
     account = forms.ModelChoiceField(
         queryset=Account.objects.filter(is_archived=False),
         label=_("Account"),
-        widget=TomSelect(clear_button=False, group_by="group"),
+        widget=forms.HiddenInput(),
+        required=False,
     )
 
     date = forms.DateField(label=_("Date"))
@@ -90,7 +91,7 @@ class TransactionForm(forms.ModelForm):
         ]
         widgets = {
             "notes": forms.Textarea(attrs={"rows": 3}),
-            "account": TomSelect(clear_button=False, group_by="group"),
+            "account": forms.HiddenInput(),
         }
 
     def __init__(self, *args, **kwargs):
@@ -98,28 +99,36 @@ class TransactionForm(forms.ModelForm):
 
         # if editing a transaction display non-archived items and it's own item even if it's archived
         if self.instance.id:
-            self.fields["account"].queryset = Account.objects.filter(
+            self.fields["account"].queryset = Account.all_objects.filter(
                 Q(is_archived=False) | Q(transactions=self.instance.id),
-            )
+            ).distinct()
 
             self.fields["category"].queryset = TransactionCategory.objects.filter(
                 Q(active=True) | Q(transaction=self.instance.id)
-            )
+            ).distinct()
 
             self.fields["tags"].queryset = TransactionTag.objects.filter(
                 Q(active=True) | Q(transaction=self.instance.id)
-            )
+            ).distinct()
 
             self.fields["entities"].queryset = TransactionEntity.objects.filter(
                 Q(active=True) | Q(transactions=self.instance.id)
-            )
+            ).distinct()
         else:
-            self.fields["account"].queryset = Account.objects.filter(
-                is_archived=False,
+            # Default to the user's Main (NORMAL) account; if category is set on
+            # submit, clean() overrides with category.account.
+            self.fields["account"].queryset = Account.all_objects.all()
+            default = (
+                Account.objects.filter(
+                    owner=get_current_user(),
+                    kind=Account.Kind.NORMAL,
+                    is_archived=False,
+                )
+                .order_by("id")
+                .first()
             )
-            user_settings = get_current_user().settings
-            if user_settings.default_account:
-                self.fields["account"].initial = user_settings.default_account
+            if default:
+                self.fields["account"].initial = default
 
             self.fields["category"].queryset = TransactionCategory.objects.filter(
                 active=True
@@ -131,13 +140,17 @@ class TransactionForm(forms.ModelForm):
         self.helper.form_tag = False
         self.helper.form_method = "post"
         self.helper.layout = Layout(
+            Field("account", type="hidden"),
             Field(
                 "type",
                 template="transactions/widgets/income_expense_toggle_buttons.html",
             ),
             Field("is_paid", template="transactions/widgets/paid_toggle_button.html"),
             Row(
-                Column("account"),
+                Column("category"),
+                Column("tags"),
+            ),
+            Row(
                 Column("entities"),
             ),
             Row(
@@ -146,10 +159,6 @@ class TransactionForm(forms.ModelForm):
             ),
             "description",
             Field("amount", inputmode="decimal"),
-            Row(
-                Column("category"),
-                Column("tags"),
-            ),
             "notes",
         )
 
@@ -157,12 +166,12 @@ class TransactionForm(forms.ModelForm):
         self.helper_simple.form_tag = False
         self.helper_simple.form_method = "post"
         self.helper_simple.layout = Layout(
+            Field("account", type="hidden"),
             Field(
                 "type",
                 template="transactions/widgets/income_expense_toggle_buttons.html",
             ),
             Field("is_paid", template="transactions/widgets/paid_toggle_button.html"),
-            "account",
             Row(
                 Column(Field("date")),
                 Column(Field("reference_date")),
@@ -228,6 +237,26 @@ class TransactionForm(forms.ModelForm):
         if date and not reference_date:
             cleaned_data["reference_date"] = date.replace(day=1)
 
+        # Category drives account: if the chosen category belongs to an
+        # account, force the transaction onto that account.
+        category = cleaned_data.get("category")
+        if category and category.account_id:
+            cleaned_data["account"] = category.account
+            self.instance.account = category.account
+        elif not cleaned_data.get("account"):
+            default = (
+                Account.objects.filter(
+                    owner=get_current_user(),
+                    kind=Account.Kind.NORMAL,
+                    is_archived=False,
+                )
+                .order_by("id")
+                .first()
+            )
+            if default:
+                cleaned_data["account"] = default
+                self.instance.account = default
+
         return cleaned_data
 
     def save(self, **kwargs):
@@ -273,7 +302,8 @@ class QuickTransactionForm(forms.ModelForm):
     account = forms.ModelChoiceField(
         queryset=Account.objects.filter(is_archived=False),
         label=_("Account"),
-        widget=TomSelect(clear_button=False, group_by="group"),
+        widget=forms.HiddenInput(),
+        required=False,
     )
 
     class Meta:
@@ -293,7 +323,7 @@ class QuickTransactionForm(forms.ModelForm):
         ]
         widgets = {
             "notes": forms.Textarea(attrs={"rows": 3}),
-            "account": TomSelect(clear_button=False, group_by="group"),
+            "account": forms.HiddenInput(),
         }
         help_texts = {
             "mute": _("Muted transactions won't be displayed on monthly summaries")
@@ -306,23 +336,32 @@ class QuickTransactionForm(forms.ModelForm):
         if self.instance.id:
             self.fields["account"].queryset = Account.objects.filter(
                 Q(is_archived=False) | Q(transactions=self.instance.id),
-            )
+            ).distinct()
 
             self.fields["category"].queryset = TransactionCategory.objects.filter(
                 Q(active=True) | Q(transaction=self.instance.id)
-            )
+            ).distinct()
 
             self.fields["tags"].queryset = TransactionTag.objects.filter(
                 Q(active=True) | Q(transaction=self.instance.id)
-            )
+            ).distinct()
 
             self.fields["entities"].queryset = TransactionEntity.objects.filter(
                 Q(active=True) | Q(transactions=self.instance.id)
-            )
+            ).distinct()
         else:
-            self.fields["account"].queryset = Account.objects.filter(
-                is_archived=False,
+            self.fields["account"].queryset = Account.all_objects.all()
+            default = (
+                Account.objects.filter(
+                    owner=get_current_user(),
+                    kind=Account.Kind.NORMAL,
+                    is_archived=False,
+                )
+                .order_by("id")
+                .first()
             )
+            if default:
+                self.fields["account"].initial = default
 
             self.fields["category"].queryset = TransactionCategory.objects.filter(
                 active=True
@@ -339,18 +378,18 @@ class QuickTransactionForm(forms.ModelForm):
                 template="transactions/widgets/income_expense_toggle_buttons.html",
             ),
             Field("is_paid", template="transactions/widgets/paid_toggle_button.html"),
-            "name",
-            HTML('<hr class="hr my-3" />'),
-            Row(
-                Column("account"),
-                Column("entities"),
-            ),
-            "description",
-            Field("amount", inputmode="decimal"),
+            Field("account", type="hidden"),
             Row(
                 Column("category"),
                 Column("tags"),
             ),
+            Row(
+                Column("entities"),
+            ),
+            HTML('<hr class="hr my-3" />'),
+            "name",
+            "description",
+            Field("amount", inputmode="decimal"),
             "notes",
             Switch("mute"),
         )
@@ -466,7 +505,7 @@ class BulkEditTransactionForm(forms.Form):
                 template="transactions/widgets/unselectable_paid_toggle_button.html",
             ),
             Row(
-                Column("account"),
+                Field("account", type="hidden"),
                 Column("entities"),
             ),
             Row(
@@ -694,7 +733,8 @@ class InstallmentPlanForm(forms.ModelForm):
     account = forms.ModelChoiceField(
         queryset=Account.objects.filter(is_archived=False),
         label=_("Account"),
-        widget=TomSelect(clear_button=False, group_by="group"),
+        widget=forms.HiddenInput(),
+        required=False,
     )
     tags = DynamicModelMultipleChoiceField(
         model=TransactionTag,
@@ -771,10 +811,18 @@ class InstallmentPlanForm(forms.ModelForm):
                 Q(active=True) | Q(installmentplan=self.instance.id)
             ).distinct()
         else:
-            self.fields["account"].queryset = Account.objects.filter(is_archived=False)
-            user_settings = get_current_user().settings
-            if user_settings.default_account:
-                self.fields["account"].initial = user_settings.default_account
+            self.fields["account"].queryset = Account.all_objects.all()
+            default = (
+                Account.objects.filter(
+                    owner=get_current_user(),
+                    kind=Account.Kind.NORMAL,
+                    is_archived=False,
+                )
+                .order_by("id")
+                .first()
+            )
+            if default:
+                self.fields["account"].initial = default
 
             self.fields["category"].queryset = TransactionCategory.objects.filter(
                 active=True
@@ -796,7 +844,7 @@ class InstallmentPlanForm(forms.ModelForm):
                 template="transactions/widgets/income_expense_toggle_buttons.html",
             ),
             Row(
-                Column("account"),
+                Field("account", type="hidden"),
                 Column("entities"),
             ),
             "description",
@@ -906,19 +954,40 @@ class TransactionEntityForm(forms.ModelForm):
 class TransactionCategoryForm(forms.ModelForm):
     class Meta:
         model = TransactionCategory
-        fields = ["name", "mute", "active"]
-        labels = {"name": _("Category name")}
+        fields = ["name", "account", "monthly_default_amount", "mute", "active"]
+        labels = {
+            "name": _("Category name"),
+            "account": _("Account"),
+            "monthly_default_amount": _("Monthly amount"),
+        }
         help_texts = {
-            "mute": _("Muted categories won't be displayed on monthly summaries")
+            "mute": _("Muted categories won't be displayed on monthly summaries"),
+            "account": _(
+                "Transactions in this category will be forced onto this account."
+            ),
+            "monthly_default_amount": _(
+                "For sinking accounts: monthly auto-allocation amount. "
+                "For normal accounts: default monthly budget."
+            ),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.fields["account"].queryset = Account.objects.filter(
+            is_archived=False
+        ).order_by("kind", "name")
+
         self.helper = FormHelper()
         self.helper.form_tag = False
         self.helper.form_method = "post"
-        self.helper.layout = Layout(Field("name"), Switch("mute"), Switch("active"))
+        self.helper.layout = Layout(
+            Field("name"),
+            Field("account"),
+            Field("monthly_default_amount"),
+            Switch("mute"),
+            Switch("active"),
+        )
 
         if self.instance and self.instance.pk:
             self.helper.layout.append(
@@ -938,7 +1007,8 @@ class RecurringTransactionForm(forms.ModelForm):
     account = forms.ModelChoiceField(
         queryset=Account.objects.filter(is_archived=False),
         label=_("Account"),
-        widget=TomSelect(clear_button=False, group_by="group"),
+        widget=forms.HiddenInput(),
+        required=False,
     )
     tags = DynamicModelMultipleChoiceField(
         model=TransactionTag,
@@ -1042,7 +1112,7 @@ class RecurringTransactionForm(forms.ModelForm):
                 template="transactions/widgets/income_expense_toggle_buttons.html",
             ),
             Row(
-                Column("account"),
+                Field("account", type="hidden"),
                 Column("entities"),
             ),
             "description",
@@ -1090,6 +1160,26 @@ class RecurringTransactionForm(forms.ModelForm):
 
         if start_date and end_date and start_date > end_date:
             raise forms.ValidationError(_("End date should be after the start date"))
+
+        # Category drives account: if the chosen category belongs to an
+        # account, force the recurring transaction onto that account.
+        category = cleaned_data.get("category")
+        if category and category.account_id:
+            cleaned_data["account"] = category.account
+            self.instance.account = category.account
+        elif not cleaned_data.get("account"):
+            default = (
+                Account.objects.filter(
+                    owner=get_current_user(),
+                    kind=Account.Kind.NORMAL,
+                    is_archived=False,
+                )
+                .order_by("id")
+                .first()
+            )
+            if default:
+                cleaned_data["account"] = default
+                self.instance.account = default
 
         return cleaned_data
 

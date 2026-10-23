@@ -1,0 +1,37 @@
+{% extends 'extends/offcanvas.html' %}
+{% load i18n %}
+
+{% block title %}{% translate 'API token created' %}{% endblock %}
+
+{% block body %}
+<div _="on load trigger updated on window">
+  <div class="alert alert-warning mb-4">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <span>{% translate "Copy this token now. For security, it will not be shown again." %}</span>
+  </div>
+
+  <label class="label" for="api-token-key">{{ token.name }}</label>
+  <div class="join w-full">
+    <input id="api-token-key" type="text" readonly
+           class="input join-item w-full font-mono"
+           value="{{ token.key }}">
+    <button type="button" class="btn btn-primary join-item"
+            data-tippy-content="{% translate 'Copy' %}"
+            _="on click
+                 call navigator.clipboard.writeText(#api-token-key.value)
+                 set my innerHTML to '<i class=\'fa-solid fa-check fa-fw\'></i>'
+                 wait 1.5s
+                 set my innerHTML to '<i class=\'fa-solid fa-copy fa-fw\'></i>'
+               end">
+      <i class="fa-solid fa-copy fa-fw"></i>
+    </button>
+  </div>
+
+  <div class="mt-6 flex justify-end">
+    <button type="button" class="btn btn-primary"
+            _="on click trigger hide_offcanvas">
+      {% translate "Done" %}
+    </button>
+  </div>
+</div>
+{% endblock %}

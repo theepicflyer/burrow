@@ -1,0 +1,197 @@
+/*
+ * Burrow design system applied to WYGIWYH ("money", Kacang's app).
+ * Tokens and the bh-* component classes come from burrow.generated.css
+ * (run `node frontend/burrow/generate.cjs` after updating the vendored Burrow sources).
+ * This file holds the app-specific parts: DaisyUI restyled with Burrow, and app components.
+ */
+
+/* App-only token: readable warning text (Burrow's sunny is a fill colour only). */
+:root,
+[data-theme=wygiwyh_dark] { --warning-text: #ffc83a; }
+[data-theme=wygiwyh_light] { --warning-text: #8a5a3b; }
+
+/* App additions built from Burrow parts. */
+@layer components {
+  .bh-page-title { margin: 0; font: 600 28px/34px var(--font-display); color: var(--ink); }
+  .bh-section-title { margin: 0; font: 600 19px/24px var(--font-display); color: var(--ink); }
+  .bh-brand { display: flex; align-items: center; gap: var(--space-2); text-decoration: none; color: var(--ink); }
+  .bh-brand__mark { width: 40px; height: 40px; flex: none; }
+  .bh-brand__name { font: 600 22px/28px var(--font-display); letter-spacing: .01em; }
+
+  /* Cast as <img> (static SVGs) rather than inline SVG. */
+  img.bh-mascot, img.bh-trace { display: inline-block; flex: none; }
+  img.bh-mascot--bounce { animation: bh-bounce 2.4s ease-in-out infinite; transform-origin: 50% 100%; }
+  .bh-empty--tight { padding: var(--space-4) var(--space-2); }
+
+  /* Habitat as a page header inside the padded main column: rounded all round. */
+  .bh-habitat--page { border-radius: var(--radius-lg); margin-bottom: var(--space-6); }
+  .bh-habitat__content > .bh-page-title + * { margin-top: var(--space-1); }
+  .bh-habitat__eyebrow { font: 600 12px/16px var(--font-sans); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-muted); }
+  .bh-habitat__sub { margin: var(--space-1) 0 0; font: 400 14px/20px var(--font-sans); color: var(--ink-muted); }
+  @media (max-width: 480px) {
+    .bh-habitat--page .bh-habitat__resident { right: 24px; }
+    .bh-habitat--page .bh-habitat__resident .bh-mascot { width: 80px; height: 80px; }
+    .bh-habitat--page .bh-habitat__props { right: -40px; }
+    .bh-habitat--page .bh-habitat__content { max-width: calc(100% - 110px); padding-right: 0; }
+  }
+
+  /* Meter driven by a --pct custom property (Django can't compute inline widths cleanly). */
+  .bh-meter__fill { width: clamp(0%, var(--pct, 0%), 100%); background: var(--accent); }
+  .bh-meter.is-over .bh-meter__fill { background: var(--tomato); }
+  .bh-meter__cap { left: clamp(0%, var(--pct, 0%), 100%); }
+
+  /* Card corner icon tiles: sticker tiles on the soft habitat tints. */
+  .bh-icon-tile { display: grid; place-items: center; width: 34px; height: 34px; border-radius: var(--radius-sm); border: var(--border-sticker) solid var(--outline); background: var(--surface-sunk); color: var(--ink); font-size: 14px; }
+  .bh-icon-tile--green { background: var(--mint-soft); }
+  .bh-icon-tile--red { background: var(--tomato-soft); }
+  .bh-icon-tile--yellow { background: var(--sunny-soft); }
+  .bh-icon-tile--blue { background: var(--sky-soft); }
+
+  /* KPI tiles */
+  .bh-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-3); }
+  .bh-kpi { display: grid; gap: 2px; padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background: var(--surface-sunk); }
+  .bh-kpi__label { font: 600 12px/16px var(--font-sans); letter-spacing: .02em; color: var(--ink-muted); }
+  .bh-kpi__value { font: 600 22px/28px var(--font-display); font-variant-numeric: tabular-nums; color: var(--ink); }
+  .bh-kpi__sub { font: 400 14px/20px var(--font-sans); color: var(--ink-muted); }
+
+  /* Clickable budget level rows */
+  .bh-level { padding: var(--space-2) var(--space-3); margin: 0 calc(-1 * var(--space-3)); border-radius: var(--radius-md); cursor: pointer; transition: background-color .15s ease; }
+  .bh-level:hover { background: var(--surface-sunk); }
+  .bh-level .bh-meter__label { font-size: 14px; line-height: 20px; }
+
+  .bh-budget-total { display: flex; justify-content: space-between; gap: var(--space-3); margin-top: var(--space-3); padding-top: var(--space-2); border-top: var(--border-hair) solid var(--line); font: 600 14px/20px var(--font-sans); color: var(--ink); }
+
+  /* Sinking funds as stashes */
+  .bh-stashes { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: flex-end; }
+
+  /* Wreath ring wrapper */
+  .bh-wreath-wrap { display: grid; place-items: center; }
+  .bh-ring__center .bh-ring__big { font: 600 30px/34px var(--font-display); font-variant-numeric: tabular-nums; color: var(--ink); }
+  .bh-ring__center .bh-ring__small { font: 400 14px/20px var(--font-sans); color: var(--ink-muted); }
+
+  /* Day headings over transaction lists: the label, then Gali's footprints to the edge. */
+  .bh-day { display: flex; align-items: center; gap: var(--space-3); width: 100%; margin: var(--space-4) 0 var(--space-2); padding: 0 var(--space-1); color: var(--ink); text-decoration: none; font: 600 16px/22px var(--font-display); }
+  .bh-day .bh-divider { flex: 1; margin: 0; opacity: .7; }
+  .bh-day.is-late { color: var(--tomato-text); }
+
+  /* Transaction rows (Burrow ListRow): trace tile that doubles as the paid toggle, text, signed amount. */
+  .bh-txn + .bh-txn { margin-top: 6px; }
+  .bh-txn__row { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-3); background: var(--surface); border-radius: var(--radius-md); transition: background-color .15s ease; }
+  .bh-txn__row.is-muted :is(.bh-txn__text, .bh-txn__aside) { opacity: .7; }
+  .bh-txn__select { display: flex; align-items: center; align-self: center; cursor: pointer; }
+  .bh-txn__tile { display: grid; place-items: center; width: 44px; height: 44px; flex: none; border-radius: var(--radius-sm); cursor: pointer; transition: transform .15s cubic-bezier(.34, 1.56, .64, 1); }
+  .bh-txn__tile.is-paid { border: var(--border-sticker) solid var(--outline); background: var(--surface-sunk); }
+  .income .bh-txn__tile.is-paid { background: var(--mint-soft); }
+  .bh-txn__tile.is-projected { border: 2px dashed var(--ink-muted); }
+  a.bh-txn__tile:hover { transform: translateY(-2px) rotate(-4deg); }
+  .bh-txn__text { flex: 1; min-width: 0; display: grid; gap: 2px; }
+  .bh-txn__title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font: 400 16px/22px var(--font-sans); color: var(--ink); }
+  .bh-txn__sub { display: flex; flex-wrap: wrap; column-gap: var(--space-3); font: 400 14px/20px var(--font-sans); color: var(--ink-muted); }
+  .bh-txn__sub i { margin-right: 3px; opacity: .75; }
+  .bh-txn__meta { font: 600 12px/16px var(--font-sans); letter-spacing: .02em; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+  .bh-txn__notes { font: 400 14px/20px var(--font-sans); color: var(--ink-muted); }
+  .bh-txn__aside { display: grid; justify-items: end; align-content: start; gap: 2px; text-align: right; }
+  .bh-txn__amount { font: 600 16px/22px var(--font-sans); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .bh-txn__account { font: 400 14px/20px var(--font-sans); color: var(--ink-muted); }
+  .bh-txn__actions { position: absolute; top: 0; left: 50%; translate: -50% -55%; padding: 4px; background: var(--surface); border: var(--border-sticker) solid var(--outline); border-radius: var(--radius-pill); box-shadow: var(--shadow-lift); }
+  .bh-txn__actions .btn { --btn-shadow: 0 0 #0000; }
+  .transaction:has(input[name=transactions]:checked) .bh-txn__row { background: var(--accent-soft); }
+  @media (max-width: 640px) {
+    .bh-txn__row { flex-wrap: wrap; }
+    .bh-txn__text { flex-basis: calc(100% - 120px); }
+    .bh-txn__aside { flex-basis: 100%; grid-auto-flow: column; justify-content: space-between; align-items: baseline; padding-left: calc(44px + var(--space-3) + 32px); }
+    .bh-txn__aside .exchanged-amount { display: none; }
+  }
+
+  /* Phone navigation: Burrow BottomNav with Kacang peeking over it; the page FAB docks in the centre. */
+  .bh-bottomnav { position: fixed; left: var(--space-4); right: var(--space-4); bottom: 12px; z-index: 1010; }
+  .bh-bottomnav .bh-nav { position: relative; z-index: 1; }
+  .bh-bottomnav__peek { position: absolute; right: 26px; top: -40px; z-index: 0; pointer-events: none; }
+  .bh-bottomnav__gap { display: none; width: 64px; flex: none; }
+  body:has(.fab) .bh-bottomnav__gap { display: block; }
+  body:has(.fab:focus-within) .bh-bottomnav { opacity: 0; pointer-events: none; }
+  .bh-bottomnav { transition: opacity .15s ease; }
+  button.bh-nav__item { background: none; border: 0; font: inherit; cursor: pointer; }
+  .bh-nav__pill i { font-size: 18px; }
+
+  /* Toasts (django messages) */
+  .toast .bh-toast { max-width: min(420px, calc(100vw - 32px)); white-space: normal; }
+  .bh-toast .btn-ghost { --btn-fg: var(--paper); }
+  .bh-toast .btn-ghost:hover { --btn-bg: color-mix(in srgb, var(--paper) 15%, transparent); }
+
+  /* Grouped day lists: one card per day, hairlines between rows. */
+  .transactions-divider-collapse > .flex-col { padding: var(--space-1) var(--space-2); background: var(--surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-lift); }
+  .transactions-divider-collapse > .flex-col > .bh-txn + .bh-txn { margin-top: 0; border-top: var(--border-hair) solid var(--line); }
+  .transactions-divider-collapse .bh-txn__row { background: transparent; border-radius: var(--radius-md); }
+  .transactions-divider-collapse .bh-txn__row:hover { background: var(--surface-sunk); }
+}
+
+/*
+ * DaisyUI, restyled with Burrow. These live in the utilities layer so they win over DaisyUI's
+ * component layer without !important (same trick the existing .card/.btn-free rules use).
+ */
+@layer utilities {
+  body { font-family: var(--font-sans); color: var(--ink); }
+  :is(h1, h2, h3, h4, h5, .card-title, .font-display) { font-family: var(--font-display); font-weight: 600; letter-spacing: .005em; }
+  .amount, .stat-value { font-variant-numeric: tabular-nums; }
+
+  /* Meaning colours: text uses the *-text tokens (4.5:1); fills keep the bright tokens. */
+  .text-success, .text-income, .text-primary, .link-primary { color: var(--mint-text); }
+  .text-error { color: var(--tomato-text); }
+  .text-info, .link-info { color: var(--sky-text); }
+  .text-warning { color: var(--warning-text); }
+  .text-expense { color: var(--ink); }      /* money out stays ink; signed rows add the minus */
+  .text-negative { color: var(--tomato-text); } /* a balance below zero */
+
+  /* Focus ring: solid sky-text, 3px, 2px offset. */
+  :where(a, button, summary, [role=button], [tabindex], .btn, .checkbox, .radio, .toggle):focus-visible { outline: 3px solid var(--sky-text); outline-offset: 2px; }
+
+  /* Buttons are stickers: pill, 2px outline, hard shadow; pressing pushes them into the shadow. */
+  .btn { --radius-field: var(--radius-pill); font-family: var(--font-display); font-weight: 600; letter-spacing: .01em; }
+  .btn:not(.btn-ghost, .btn-link, .btn-soft, .btn-outline, .btn-dash) { --btn-border: var(--outline); --btn-shadow: var(--shadow-sticker); }
+  .btn:not(.btn-primary, .btn-secondary, .btn-accent, .btn-neutral, .btn-info, .btn-success, .btn-warning, .btn-error, .btn-ghost, .btn-link, .btn-soft, .btn-outline, .btn-dash) { --btn-bg: var(--surface); --btn-fg: var(--ink); }
+  .btn:not(.btn-ghost, .btn-link, .btn-soft, .btn-outline, .btn-dash):active:not(:disabled, .btn-disabled) { translate: 0 3px; --btn-shadow: 0 0 #0000; }
+  .btn:is(:disabled, .btn-disabled, [disabled]) { --btn-shadow: 0 0 #0000; }
+  .btn-xs { --btn-shadow: 0 2px 0 var(--outline); }
+  .btn-outline { --btn-border: var(--outline); }
+  .btn-outline:not(:hover, .btn-active), .btn-soft:not(:hover, .btn-active) { --btn-fg: var(--ink); }
+  .btn-ghost:hover { --btn-bg: var(--surface-sunk); }
+
+  /* Fields: 2px ink-muted border, sky focus with a soft halo. */
+  :is(.input, .select, .textarea) { --input-color: var(--ink-muted); background-color: var(--surface); }
+  :is(.input, .select, .textarea):is(:focus, :focus-within) { --input-color: var(--sky-text); outline: none; box-shadow: 0 0 0 3px var(--sky-soft); }
+  :is(.checkbox, .radio) { --input-color: var(--ink-muted); }
+  .fieldset-legend, .label { color: var(--ink-muted); font-weight: 600; letter-spacing: .02em; }
+
+  /* Cards float on the paper with the signature soft corner. */
+  .card { border-radius: var(--radius-lg); box-shadow: var(--shadow-lift); }
+  .card .card-header { border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+  .card .card-footer { border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+
+  /* Chips */
+  .badge { border-radius: var(--radius-pill); font-weight: 600; }
+
+  /* Banners: soft habitat tints with ink text. */
+  .alert { border: var(--border-sticker) solid var(--outline); color: var(--ink); }
+  .alert-info { background-color: var(--sky-soft); }
+  .alert-success { background-color: var(--mint-soft); }
+  .alert-warning { background-color: var(--sunny-soft); }
+  .alert-error { background-color: var(--tomato-soft); }
+
+  /* Meter-style progress bars */
+  .progress { background-color: var(--surface-sunk); border-radius: var(--radius-pill); }
+
+  .hr, hr { border-color: var(--line); color: var(--line); }
+
+  @media (max-width: 1023.98px) {
+    main { padding-bottom: 112px; }
+    .fab { inset-inline-end: calc(50% - 24px); bottom: 34px; z-index: 1011; }
+    #actions-bar { bottom: 100px; }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  img.bh-mascot--bounce { animation: none; }
+  .bh-txn__tile, .bh-bottomnav { transition: none; }
+  a.bh-txn__tile:hover { transform: none; }
+}

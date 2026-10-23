@@ -1,3 +1,4 @@
+from apps.api.models import APIToken
 from apps.common.middleware.thread_local import get_current_user
 from apps.common.widgets.crispy.submit import NoClassSubmit
 from apps.common.widgets.tom_select import TomSelect
@@ -335,6 +336,29 @@ class UserUpdateForm(forms.ModelForm):
         if commit:
             user.save()
         return user
+
+
+class APITokenForm(forms.ModelForm):
+    class Meta:
+        model = APIToken
+        fields = ["name", "scope"]
+        widgets = {
+            "scope": TomSelect(clear_button=False),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = FormHelper()
+        self.helper.form_tag = False
+        self.helper.form_method = "post"
+        self.helper.layout = Layout(
+            "name",
+            "scope",
+            FormActions(
+                NoClassSubmit("submit", _("Create"), css_class="btn btn-primary"),
+            ),
+        )
 
 
 class UserAddForm(UserCreationForm):

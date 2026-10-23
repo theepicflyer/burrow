@@ -17,6 +17,10 @@
        class="show-loading"
        hx-get=""
        hx-target="body">
+    <c-burrow.habitat kind="oak" mood="wow" class="mt-2">
+      <div class="bh-habitat__eyebrow">{% translate 'Net Worth' %}</div>
+      <h1 class="bh-page-title">{% if type == "current" %}{% translate "Current Net Worth" %}{% else %}{% translate "Projected Net Worth" %}{% endif %}</h1>
+    </c-burrow.habitat>
     <div class="h-full text-center mb-4 w-full">
       <div class="tabs tabs-box mx-auto w-fit"
            id="view-type"
@@ -58,7 +62,7 @@
                       <a class="cursor-pointer select-auto flex justify-between items-center w-full"
                          _="on click showOnlyCurrencyDataset('{{ currency.currency.name }}')">
                         <span
-                            class="currency-name text-start font-mono shrink text-ellipsis">{{ currency.currency.name }}</span>
+                            class="currency-name text-start tabular-nums shrink text-ellipsis">{{ currency.currency.name }}</span>
                         <span class="text-end shrink-0">
                         <div>
                           <c-amount.display :amount="currency.total_final" :prefix="currency.currency.prefix"
@@ -96,7 +100,7 @@
                     {% else %}
                       <a class="cursor-pointer select-auto flex justify-between items-center w-full"
                          _="on click showOnlyCurrencyDataset('{{ currency.currency.name }}')">
-                        <span class="currency-name text-start font-mono shrink">{{ currency.currency.name }}</span>
+                        <span class="currency-name text-start tabular-nums shrink">{{ currency.currency.name }}</span>
                         <span class="text-end shrink-0">
                         <div>
                           <c-amount.display :amount="currency.total_final" :prefix="currency.currency.prefix"
@@ -176,7 +180,7 @@
                               <a class="cursor-pointer select-auto flex justify-between items-center w-full"
                                  _="on click showOnlyAccountDataset('{{ account.account.name }}')">
                                 <span
-                                    class="account-name text-start font-mono shrink text-ellipsis">{{ account.account.name }}</span>
+                                    class="account-name text-start tabular-nums shrink text-ellipsis">{{ account.account.name }}</span>
                                 <span class="text-end shrink-0">
                                 <div>
                                   <c-amount.display :amount="account.total_final" :prefix="account.currency.prefix"
@@ -205,7 +209,7 @@
                       <li>
                         <a class="cursor-pointer flex select-auto justify-between items-center w-full"
                            _="on click showOnlyAccountDataset('{{ account.account.name }}')">
-                          <span class="account-name text-start font-mono shrink">{{ account.account.name }}</span>
+                          <span class="account-name text-start tabular-nums shrink">{{ account.account.name }}</span>
                           <span class="text-end shrink-0">
                           <div>
                             <c-amount.display :amount="account.total_final" :prefix="account.currency.prefix"

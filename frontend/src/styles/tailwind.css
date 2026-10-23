@@ -6,40 +6,43 @@
 }
 @plugin "../plugins/tw-bootstrap-grid-plugin.js";
 
+/* Burrow design system: DaisyUI slots point at Burrow tokens (see burrow.css for the full set).
+   Fills (primary/success/error/...) are the bright Burrow colours with on-accent text; text that
+   carries meaning uses the *-text tokens via the overrides in burrow.css. */
 @plugin "daisyui/theme" {
   name: "wygiwyh_light";
   default: false;
   prefersdark: false;
   color-scheme: "light";
-  --color-base-100: oklch(100% 0 0);
-  --color-base-200: oklch(98% 0 0);
-  --color-base-300: oklch(96% 0 0);
-  --color-base-content: oklch(21% 0.006 285.885);
-  --color-primary: #b07526;
-  --color-primary-content: #fcf2e7;
-  --color-secondary: oklch(44% 0.043 257.281);
-  --color-secondary-content: oklch(98% 0.003 247.858);
-  --color-accent: oklch(70% 0.01 56.259);
-  --color-accent-content: oklch(14% 0.004 49.25);
-  --color-neutral: oklch(14% 0.005 285.823);
-  --color-neutral-content: oklch(92% 0.004 286.32);
-  --color-info: oklch(74% 0.16 232.661);
-  --color-info-content: oklch(29% 0.066 243.157);
-  --color-success: #4b8f45;
-  --color-success-content: #ebf6ea;
-  --color-warning: #b07526;
-  --color-warning-content: #fcf2e7;
-  --color-error: #b44041;
-  --color-error-content: #ffeae8;
-  --radius-selector: 0.5rem;
-  --radius-field: 0.5rem;
-  --radius-box: 0.5rem;
+  --color-base-100: #ffffff;
+  --color-base-200: #f7ebd8;
+  --color-base-300: #e6d6be;
+  --color-base-content: #2b2240;
+  --color-primary: #34c08f;
+  --color-primary-content: #2b2240;
+  --color-secondary: #ffffff;
+  --color-secondary-content: #2b2240;
+  --color-accent: #ffc83a;
+  --color-accent-content: #2b2240;
+  --color-neutral: #2b2240;
+  --color-neutral-content: #fff7ea;
+  --color-info: #5db6ff;
+  --color-info-content: #2b2240;
+  --color-success: #34c08f;
+  --color-success-content: #2b2240;
+  --color-warning: #ffc83a;
+  --color-warning-content: #2b2240;
+  --color-error: #ff6a48;
+  --color-error-content: #2b2240;
+  --radius-selector: 0.625rem;
+  --radius-field: 0.625rem;
+  --radius-box: 1rem;
   --size-selector: 0.25rem;
   --size-field: 0.25rem;
   --border: 2px;
   --depth: 0;
   --noise: 0;
-  --root-bg: oklch(93% 0 0);
+  --root-bg: #fff7ea;
 }
 
 
@@ -48,35 +51,35 @@
   default: true;
   prefersdark: true;
   color-scheme: "dark";
-  --color-base-100: oklch(32.33% 0.016 252.42);
-  --color-base-200: oklch(30.26% 0.016 252.42);
-  --color-base-300: oklch(28.15% 0.016 252.42);
-  --color-base-content: oklch(97.807% 0.029 256.847);
-  --color-primary: oklch(87% 0.169 91.605);
-  --color-primary-content: oklch(41% 0.112 45.904);
-  --color-secondary: oklch(44% 0.043 257.281);
-  --color-secondary-content: oklch(98% 0.003 247.858);
-  --color-accent: oklch(70% 0.01 56.259);
-  --color-accent-content: oklch(14% 0.004 49.25);
-  --color-neutral: oklch(14% 0.005 285.823);
-  --color-neutral-content: oklch(92% 0.004 286.32);
-  --color-info: oklch(74% 0.16 232.661);
-  --color-info-content: oklch(29% 0.066 243.157);
-  --color-success: oklch(76% 0.177 163.223);
-  --color-success-content: oklch(37% 0.077 168.94);
-  --color-warning: oklch(82% 0.189 84.429);
-  --color-warning-content: oklch(41% 0.112 45.904);
-  --color-error: oklch(70.4% 0.191 22.216);
-  --color-error-content: oklch(25.8% 0.092 26.042);
-  --radius-selector: 0.5rem;
-  --radius-field: 0.5rem;
-  --radius-box: 0.5rem;
+  --color-base-100: #2a2339;
+  --color-base-200: #15111e;
+  --color-base-300: #3b3350;
+  --color-base-content: #fff3e2;
+  --color-primary: #3ccb97;
+  --color-primary-content: #1d1828;
+  --color-secondary: #2a2339;
+  --color-secondary-content: #fff3e2;
+  --color-accent: #ffc83a;
+  --color-accent-content: #1d1828;
+  --color-neutral: #0e0b14;
+  --color-neutral-content: #fff3e2;
+  --color-info: #6cc0ff;
+  --color-info-content: #1d1828;
+  --color-success: #3ccb97;
+  --color-success-content: #1d1828;
+  --color-warning: #ffc83a;
+  --color-warning-content: #1d1828;
+  --color-error: #ff7a5a;
+  --color-error-content: #1d1828;
+  --radius-selector: 0.625rem;
+  --radius-field: 0.625rem;
+  --radius-box: 1rem;
   --size-selector: 0.25rem;
   --size-field: 0.25rem;
   --border: 2px;
   --depth: 0;
   --noise: 0;
-  --root-bg: oklch(26.33% 0.016 252.42);
+  --root-bg: #1d1828;
 }
 
 
@@ -85,6 +88,8 @@
 
 
 @theme {
+    --font-sans: "Figtree Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-display: "Fredoka Variable", "Avenir Next Rounded", "SF Pro Rounded", system-ui, sans-serif;
     --font-mono: "JetBrains Mono Variable", monospace;
 }
 
@@ -92,10 +97,6 @@
 @layer utilities {
     .textarea {
         min-height: unset;
-    }
-
-    .transaction:has(input[type="checkbox"]:checked) > div > .transaction-item {
-        background-color: oklch(from var(--color-primary) l c h / 15%);
     }
 
 
@@ -132,13 +133,7 @@
             border: var(--border) solid var(--color-base-300);
     }
 
-    .text-income {
-        @apply text-success;
-    }
-
-    .text-expense {
-        @apply text-error;
-    }
+    /* .text-income / .text-expense: see burrow.css (money in = mint-text, money out = ink) */
 
     .text-exchange-rate {
         @apply text-base-content/60 text-xs;
@@ -207,11 +202,11 @@
 
     /* === Sidebar styles === */
     .sidebar-active {
-        @apply text-primary-content bg-primary rounded-box;
+        @apply text-base-content bg-(--accent-soft) rounded-full font-semibold;
     }
 
     .sidebar-item:not(.sidebar-active) {
-        @apply text-base-content/80 hover:text-base-content;
+        @apply text-(--ink-muted) hover:text-base-content hover:bg-(--surface-sunk) rounded-full;
     }
 
     .sidebar {

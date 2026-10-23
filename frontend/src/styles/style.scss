@@ -30,9 +30,9 @@ select {
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background-color: #222;
-  color: #fbb700;
-  font-family: Arial, sans-serif;
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
 }
 
 .wifi-icon {

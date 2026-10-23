@@ -13,35 +13,36 @@
 
 {% block content %}
   <div class="container gap-y-3">
-    <div class="row mt-7 mb-5">
-      <div class="col-12 lg:col-4">
-        {#    Date picker#}
-        <div class="flex flex-row items-center">
-          <a role="button"
-             class="btn btn-ghost"
-            hx-boost="true"
-            hx-trigger="click, previous_month from:window"
-            href="{% url 'monthly_overview' month=previous_month year=previous_year %}">
-            <i class="fa-solid fa-chevron-left"></i>
-          </a>
-          <div class="text-2xl font-bold btn btn-ghost flex-1 text-center whitespace-normal flex-wrap h-auto min-w-0"
-              hx-get="{% url 'month_year_picker' %}"
-              hx-target="#generic-offcanvas-left"
-              hx-trigger="click, date_picker from:window"
-              hx-vals='{"month": {{ month }}, "year": {{ year }}, "for": "monthly_overview", "field": "reference_date"}'
-              role="button">
-            {{ month|month_name }} {{ year }}
-          </div>
-          <a role="button"
-             class="btn btn-ghost"
-            hx-boost="true"
-            hx-trigger="click, next_month from:window"
-            href="{% url 'monthly_overview' month=next_month year=next_year %}">
-            <i class="fa-solid fa-chevron-right"></i>
-          </a>
-        </div>
+    <c-burrow.habitat kind="oak" class="mt-2">
+      <div class="bh-habitat__eyebrow">{% translate 'Monthly overview' %}</div>
+      {#    Date picker#}
+      <div class="bh-page-title cursor-pointer hover:underline decoration-2 underline-offset-4"
+          hx-get="{% url 'month_year_picker' %}"
+          hx-target="#generic-offcanvas-left"
+          hx-trigger="click, date_picker from:window"
+          hx-vals='{"month": {{ month }}, "year": {{ year }}, "for": "monthly_overview", "field": "reference_date"}'
+          role="button">
+        {{ month|month_name }} {{ year }}
       </div>
-    </div>
+      <div class="flex gap-2 mt-3">
+        <a role="button"
+           class="btn btn-sm btn-circle"
+           aria-label="{% translate 'Previous month' %}"
+          hx-boost="true"
+          hx-trigger="click, previous_month from:window"
+          href="{% url 'monthly_overview' month=previous_month year=previous_year %}">
+          <i class="fa-solid fa-chevron-left"></i>
+        </a>
+        <a role="button"
+           class="btn btn-sm btn-circle"
+           aria-label="{% translate 'Next month' %}"
+          hx-boost="true"
+          hx-trigger="click, next_month from:window"
+          href="{% url 'monthly_overview' month=next_month year=next_year %}">
+          <i class="fa-solid fa-chevron-right"></i>
+        </a>
+      </div>
+    </c-burrow.habitat>
     {#  Monthly summary#}
     <div class="row gap-y-3">
       <div class="col-12 lg:col-4 lg:order-last! order-first!">
@@ -85,6 +86,19 @@
                  class="show-loading"
                  hx-trigger="load, updated from:window, selective_update from:window, every 10m"
                  hx-include="#filter">
+            </div>
+          </div>
+
+          <input type="radio" name="monthly_summary_tabs" class="tab" aria-label="{% trans 'Budget' %}"
+                 role="tab"
+                 {% if summary_tab == 'budget' %}checked="checked"{% endif %}
+                 _="on click fetch {% url 'monthly_summary_select' selected='budget' %}"
+                 aria-controls="budget-tab-pane" />
+          <div class="tab-content" id="budget-tab-pane" role="tabpanel">
+            <div id="budget-summary"
+                 hx-get="{% url 'monthly_budget_status' month=month year=year %}"
+                 class="show-loading"
+                 hx-trigger="load, updated from:window, selective_update from:window, every 10m">
             </div>
           </div>
         </div>

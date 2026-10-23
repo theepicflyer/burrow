@@ -4,11 +4,10 @@
         hx_target="#generic-offcanvas">
 </c-ui.fab-single-action>
 <div class="container">
-  <div class="text-3xl font-bold font-mono w-full mb-3">
-    {% spaceless %}
-      <div>{% translate 'Dollar Cost Average Strategies' %}</div>
-    {% endspaceless %}
-  </div>
+  <c-burrow.habitat kind="oak" mood="happy">
+    <div class="bh-habitat__eyebrow">{% translate 'Tools' %}</div>
+    <h1 class="bh-page-title">{% translate 'Dollar Cost Average Strategies' %}</h1>
+  </c-burrow.habitat>
 
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
     {% for strategy in strategies %}
@@ -62,6 +61,10 @@
             {% endif %}
           </div>
         </div>
+      </div>
+    {% empty %}
+      <div class="col-span-full card bg-base-100 shadow-xl">
+        <c-msg.empty title="{% translate "No strategies" %}" remove-padding></c-msg.empty>
       </div>
     {% endfor %}
   </div>

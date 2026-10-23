@@ -33,6 +33,26 @@ urlpatterns = [
         name="user_settings",
     ),
     path(
+        "user/api-tokens/",
+        views.api_tokens_index,
+        name="api_tokens_index",
+    ),
+    path(
+        "user/api-tokens/list/",
+        views.api_tokens_list,
+        name="api_tokens_list",
+    ),
+    path(
+        "user/api-tokens/add/",
+        views.api_token_add,
+        name="api_token_add",
+    ),
+    path(
+        "user/api-tokens/<int:pk>/delete/",
+        views.api_token_delete,
+        name="api_token_delete",
+    ),
+    path(
         "users/",
         views.users_index,
         name="users_index",

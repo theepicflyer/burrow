@@ -1,0 +1,6 @@
+<c-vars leaves="0" class="" />
+{#
+  Burrow Ring, wreath variant (money's month): 26 oak leaves turn green as the month's budget is spent.
+  leaves = round(share spent * 26), e.g. {% widthratio spent budget 26 %}. The slot sits in the centre.
+#}
+<div class="bh-wreath-wrap {{ class }}">{% with leaves=leaves|add:0 %}{% include "burrow/scenes/wreath.html" %}{% endwith %}</div>

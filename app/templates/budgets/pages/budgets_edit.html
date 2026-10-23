@@ -1,0 +1,106 @@
+{% extends "layouts/base.html" %}
+{% load i18n %}
+{% block title %}{% translate "Budgets" %}{% endblock title %}
+{% block content %}
+  <div class="container px-md-3 py-3">
+    <c-burrow.habitat kind="oak" mood="busy">
+      <div class="bh-habitat__eyebrow">{% translate "Budgets" %}</div>
+      <h1 class="bh-page-title">{% translate "Budgets" %}</h1>
+      <p class="bh-habitat__sub">
+        {% blocktranslate with month=current_month|date:"F Y" %}Editing: {{ month }}{% endblocktranslate %}
+      </p>
+    </c-burrow.habitat>
+
+    <div role="alert" class="alert alert-info mb-4">
+      <i class="fa-solid fa-circle-info"></i>
+      <span>
+        {% blocktranslate %}Changes only affect the current month and going forward. Past months keep the amounts they had.{% endblocktranslate %}
+      </span>
+    </div>
+
+    <form method="post">
+      {% csrf_token %}
+
+      {% if sinking_cats %}
+        <div class="card bg-base-100 mb-4">
+          <div class="card-body">
+            <h2 class="card-title">
+              <i class="fa-solid fa-piggy-bank text-warning me-2"></i>
+              {% translate "Sinking account allocations" %}
+            </h2>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>{% translate "Category" %}</th>
+                  <th>{% translate "Account" %}</th>
+                  <th class="text-right" style="width: 220px;">{% translate "Monthly allocation" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for cat in sinking_cats %}
+                  <tr>
+                    <td class="tabular-nums">{{ cat.name }}</td>
+                    <td><span class="badge badge-warning">{{ cat.account.name }}</span></td>
+                    <td>
+                      <input type="number" step="any" min="0" inputmode="decimal"
+                             name="amount_{{ cat.id }}"
+                             value="{% if cat.monthly_default_amount is not None %}{{ cat.monthly_default_amount|floatformat:2 }}{% endif %}"
+                             class="input input-bordered w-full tabular-nums text-right" />
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      {% endif %}
+
+      {% if normal_cats %}
+        <div class="card bg-base-100 mb-4">
+          <div class="card-body">
+            <h2 class="card-title">
+              <i class="fa-solid fa-wallet text-success me-2"></i>
+              {% translate "Normal account budgets" %}
+            </h2>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>{% translate "Category" %}</th>
+                  <th>{% translate "Account" %}</th>
+                  <th class="text-right" style="width: 220px;">{% translate "Monthly budget" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for cat in normal_cats %}
+                  <tr>
+                    <td class="tabular-nums">{{ cat.name }}</td>
+                    <td>
+                      {% if cat.account %}
+                        <span class="badge badge-success">{{ cat.account.name }}</span>
+                      {% else %}
+                        <span class="badge badge-ghost">{% translate "Unassigned" %}</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      <input type="number" step="any" min="0" inputmode="decimal"
+                             name="amount_{{ cat.id }}"
+                             value="{% if cat.monthly_default_amount is not None %}{{ cat.monthly_default_amount|floatformat:2 }}{% endif %}"
+                             class="input input-bordered w-full tabular-nums text-right" />
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      {% endif %}
+
+      <div class="flex justify-end gap-2">
+        <button type="submit" class="btn btn-primary">
+          <i class="fa-solid fa-floppy-disk me-1"></i> {% translate "Save" %}
+        </button>
+      </div>
+    </form>
+  </div>
+  <c-ui.transactions_fab></c-ui.transactions_fab>
+{% endblock content %}

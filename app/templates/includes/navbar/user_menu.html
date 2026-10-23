@@ -34,6 +34,10 @@
            hx-target="#generic-offcanvas"
            role="button">
       <i class="fa-solid fa-user me-2 fa-fw"></i>{% translate 'Edit profile' %}</a></li>
+    <li><a
+           href="{% url 'api_tokens_index' %}"
+           role="button">
+      <i class="fa-solid fa-key me-2 fa-fw"></i>{% translate 'API tokens' %}</a></li>
     <hr class="my-1 hr">
     {% spaceless %}
     <li>

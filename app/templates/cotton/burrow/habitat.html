@@ -1,0 +1,22 @@
+<c-vars kind="oak" who="" mood="happy" class="" />
+{#
+  Burrow Habitat: a page header band showing an animal at home.
+  kind: oak (budgets, money; Kacang), burrow (history, search; Gali), river (settings; Kayu), meadow (Bao).
+  The slot holds the page title and controls; keep it short, the scenery takes the right-hand side.
+#}
+<div class="bh-habitat bh-habitat--{{ kind }} bh-habitat--page {{ class }}">
+  {% if kind == "burrow" %}
+    {% include "burrow/scenes/habitat_burrow.html" %}
+    <span class="bh-habitat__resident"><c-burrow.mascot who="{{ who|default:'gali' }}" mood="{{ mood }}" size="96" bounce="1" /></span>
+  {% elif kind == "river" %}
+    {% include "burrow/scenes/habitat_river.html" %}
+    <span class="bh-habitat__resident"><c-burrow.mascot who="{{ who|default:'kayu' }}" mood="{{ mood }}" size="96" bounce="1" /></span>
+  {% elif kind == "meadow" %}
+    {% include "burrow/scenes/habitat_meadow.html" %}
+    <span class="bh-habitat__resident"><c-burrow.mascot who="{{ who|default:'bao' }}" mood="{{ mood }}" size="96" bounce="1" /></span>
+  {% else %}
+    {% include "burrow/scenes/habitat_oak.html" %}
+    <span class="bh-habitat__resident"><c-burrow.mascot who="{{ who|default:'kacang' }}" mood="{{ mood }}" size="96" bounce="1" /></span>
+  {% endif %}
+  <div class="bh-habitat__content">{{ slot }}</div>
+</div>

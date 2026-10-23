@@ -1,0 +1,75 @@
+{% load i18n %}
+
+{# Burrow: normal categories answer "did spend stay under budget" (acorn meters); sinking funds answer
+   "what went in and out of the stash" (rows). Kept visually separate on purpose. #}
+<div class="card bg-base-100">
+  <div class="card-body gap-4">
+    {% if normal_rows %}
+      <section>
+        <h3 class="bh-section-title mb-2">{% translate "Normal" %}</h3>
+        <div class="flex flex-col gap-3">
+          {% for r in normal_rows %}
+            {% with spent=r.spent|floatformat:2 budget=r.budget|floatformat:2 %}
+              {% if r.budget %}
+                {% widthratio r.spent r.budget 100 as pct %}
+                {% if r.spent > r.budget %}
+                  <c-burrow.meter :label="r.category.name" value_text="{{ spent }} / {{ budget }}" :percent="pct" over="1" />
+                {% else %}
+                  <c-burrow.meter :label="r.category.name" value_text="{{ spent }} / {{ budget }}" :percent="pct" />
+                {% endif %}
+              {% else %}
+                <div class="bh-meter__top">
+                  <span class="bh-meter__label">{{ r.category.name }}</span>
+                  <span class="bh-meter__value">{{ spent }} · {% translate "no budget" %}</span>
+                </div>
+              {% endif %}
+            {% endwith %}
+          {% endfor %}
+        </div>
+        <div class="bh-budget-total">
+          <span>{% translate "Normal subtotal" %}</span>
+          <span class="tabular-nums">{{ normal_totals.spent|floatformat:2 }} / {{ normal_totals.budget|floatformat:2 }}</span>
+        </div>
+      </section>
+    {% endif %}
+
+    {% if sinking_rows %}
+      <div class="bh-divider bh-divider--leaves" role="separator"></div>
+      <section>
+        <h3 class="bh-section-title mb-1">{% translate "Sinking" %}</h3>
+        {% for r in sinking_rows %}
+          <div class="bh-row">
+            <span class="bh-row__tile"><c-burrow.trace name="acorn" size="30" /></span>
+            <span class="bh-row__text">
+              <span class="bh-row__title">{{ r.account.name }}</span>
+              <span class="bh-row__sub">{% translate "Spent" %} {{ r.spent|floatformat:2 }}</span>
+            </span>
+            <span class="bh-row__amount is-in">+{{ r.received|floatformat:2 }}</span>
+          </div>
+        {% endfor %}
+        <div class="bh-budget-total">
+          <span>{% translate "Sinking subtotal" %}</span>
+          <span class="tabular-nums">{{ sinking_totals.spent|floatformat:2 }} / {{ sinking_totals.budget|floatformat:2 }}</span>
+        </div>
+      </section>
+    {% endif %}
+
+    {% if sinking_rows or normal_rows %}
+      <div class="bh-kpis">
+        <div class="bh-kpi">
+          <div class="bh-kpi__label">{% translate "Total" %}</div>
+          <div class="bh-kpi__value">{{ grand_totals.spent|floatformat:2 }}</div>
+          <div class="bh-kpi__sub">{% translate "Spent" %} / {{ grand_totals.budget|floatformat:2 }}</div>
+        </div>
+        <div class="bh-kpi">
+          <div class="bh-kpi__label">{% translate "Balance" %}</div>
+          <div class="bh-kpi__value {% if grand_totals.balance < 0 %}text-error{% else %}text-success{% endif %}">
+            {{ grand_totals.balance|floatformat:2 }}
+          </div>
+        </div>
+      </div>
+    {% else %}
+      <c-msg.empty title="{% translate 'No budgets yet' %}" who="kacang" mood="sleepy" remove-padding></c-msg.empty>
+    {% endif %}
+  </div>
+</div>

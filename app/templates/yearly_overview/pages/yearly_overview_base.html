@@ -25,29 +25,28 @@
     </div>
   </div>
   <div class="container" id="yearly-content">
-    <div class="row mt-7 mb-5">
+    <c-burrow.habitat kind="burrow" class="mt-2">
+      <div class="bh-habitat__eyebrow">{% translate 'Yearly' %}</div>
       {#    Date picker #}
-      <div class="col-12 lg:col-3">
-        <div class="flex flex-row items-center">
-          <a role="button"
-             hx-boost="true"
-             class="btn btn-ghost"
-             hx-trigger="click, previous_year from:window"
-             href="{% block previous_year_url %}{% endblock %}">
-            <i class="fa-solid fa-chevron-left"></i></a>
-          <div class="text-2xl font-bold flex-1 text-center whitespace-normal flex-wrap h-auto min-w-0">
-            {{ year }}
-          </div>
-          <a role="button"
-             hx-boost="true"
-             class="btn btn-ghost"
-             hx-trigger="click, next_year from:window"
-             href="{% block next_year_url %}{% endblock %}">
-            <i class="fa-solid fa-chevron-right"></i>
-          </a>
-        </div>
+      <h1 class="bh-page-title tabular-nums">{{ year }}</h1>
+      <div class="flex gap-2 mt-3">
+        <a role="button"
+           hx-boost="true"
+           class="btn btn-sm btn-circle"
+           aria-label="{% translate 'Previous year' %}"
+           hx-trigger="click, previous_year from:window"
+           href="{% block previous_year_url %}{% endblock %}">
+          <i class="fa-solid fa-chevron-left"></i></a>
+        <a role="button"
+           hx-boost="true"
+           class="btn btn-sm btn-circle"
+           aria-label="{% translate 'Next year' %}"
+           hx-trigger="click, next_year from:window"
+           href="{% block next_year_url %}{% endblock %}">
+          <i class="fa-solid fa-chevron-right"></i>
+        </a>
       </div>
-    </div>
+    </c-burrow.habitat>
     <div class="row gap-y-3">
       <div class="col-12 xl:col-3">
         <div class="card bg-base-100 card-border">

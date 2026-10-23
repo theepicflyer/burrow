@@ -1,0 +1,64 @@
+{% load i18n %}
+<c-ui.fab-single-action
+    url="{% url 'api_token_add' %}"
+    hx_target="#generic-offcanvas">
+</c-ui.fab-single-action>
+<div class="container px-md-3 py-3 column-gap-5">
+  <c-burrow.habitat kind="river" mood="happy">
+    <div class="bh-habitat__eyebrow">{% translate 'Management' %}</div>
+    <h1 class="bh-page-title">{% translate 'API tokens' %}</h1>
+  </c-burrow.habitat>
+
+  <div class="card card-border bg-base-100 shadow w-full">
+    <div class="card-body">
+      <p class="text-subtle mb-3">
+        {% translate "Authenticate API requests with the header" %}
+        <code>Authorization: Token &lt;key&gt;</code>.
+        {% translate "Read-only tokens can only perform GET requests." %}
+      </p>
+      <div id="api-tokens-table">
+        {% if tokens %}
+          <div class="overflow-x-auto">
+            <table class="table table-zebra">
+              <thead>
+              <tr>
+                <th scope="col" class="table-col-auto"></th>
+                <th scope="col">{% translate 'Name' %}</th>
+                <th scope="col">{% translate 'Scope' %}</th>
+                <th scope="col">{% translate 'Created' %}</th>
+                <th scope="col">{% translate 'Last used' %}</th>
+              </tr>
+              </thead>
+              <tbody>
+              {% for token in tokens %}
+                <tr>
+                  <td class="table-col-auto">
+                    <div class="join" role="group" aria-label="{% translate 'Actions' %}">
+                      <a class="btn btn-error btn-sm join-item"
+                         role="button"
+                         data-tippy-content="{% translate "Revoke" %}"
+                         hx-delete="{% url 'api_token_delete' pk=token.id %}"
+                         hx-trigger='confirmed'
+                         data-bypass-on-ctrl="true"
+                         data-title="{% translate "Are you sure?" %}"
+                         data-text="{% translate "Any client using this token will stop working." %}"
+                         data-confirm-text="{% translate "Yes, revoke it!" %}"
+                         _="install prompt_swal"><i class="fa-solid fa-trash fa-fw"></i></a>
+                    </div>
+                  </td>
+                  <td>{{ token.name }}</td>
+                  <td>{{ token.get_scope_display }}</td>
+                  <td>{{ token.created_at }}</td>
+                  <td>{% if token.last_used_at %}{{ token.last_used_at }}{% else %}-{% endif %}</td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <c-msg.empty title="{% translate "No API tokens" %}" remove-padding></c-msg.empty>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>

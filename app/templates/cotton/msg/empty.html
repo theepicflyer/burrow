@@ -1,9 +1,12 @@
-<div class="grid grid-cols-1 {% if not remove_padding %}p-5{% endif %}">
-  <div class="{% if not remove_padding %}p-5{% endif %}">
-    <div class="text-center">
-      <i class="{% if icon %}{{ icon }}{% else %}fa-solid fa-circle-xmark{% endif %} text-6xl"></i>
-      <p class="text-lg mt-4 mb-0">{{ title }}</p>
-      <p class="text-subtle">{{ subtitle }}</p>
-    </div>
-  </div>
+<c-vars who="gali" mood="sleepy" />
+{#
+  Burrow EmptyState. Gali (the burrow) owns "nothing here"/"nothing found" by default; pass who/mood to
+  hand the moment to another animal (kacang for budgets and funds, kayu for settings).
+  The legacy `icon` attribute is accepted and ignored.
+#}
+<div class="bh-empty {% if remove_padding %}bh-empty--tight{% endif %}">
+  <c-burrow.mascot who="{{ who }}" mood="{{ mood }}" size="112" />
+  <h3 class="bh-empty__title">{{ title }}</h3>
+  {% if subtitle %}<p class="bh-empty__body">{{ subtitle }}</p>{% endif %}
+  {{ slot }}
 </div>

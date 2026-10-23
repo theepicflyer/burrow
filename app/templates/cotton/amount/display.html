@@ -7,14 +7,15 @@
 {% endif %}
   <span class="amount
                 {% if color == 'grey' or color == "gray" %} text-exchange-rate 
-                {% elif color == 'green' %} text-income {% elif color == 'red' %} text-expense 
+                {% elif color == 'green' %} text-income
+                {% elif color == 'red' %} {% if amount < 0 %} text-negative {% else %} text-expense {% endif %}
                 {% elif color == 'auto' %} 
                 {% if amount > 0 %} text-income 
-                {% elif amount < 0 %} text-expense 
+                {% elif amount < 0 %} text-negative 
                 {% else %} text-base-content {% endif %} 
                 {% endif %} 
               font-medium {{ custom_class }}"
-       data-original-sign="{{ formatted_amount.sign }}"
+       data-original-sign="{% if formatted_amount.sign %}{{ formatted_amount.sign }}{% elif signed and color == 'red' and amount %}−{% elif signed and color == 'green' and amount %}+{% endif %}"
        data-original-prefix="{{ formatted_amount.prefix }}"
        data-original-amount="{{ formatted_amount.amount }}"
        data-original-suffix="{{ formatted_amount.suffix }}"

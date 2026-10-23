@@ -24,11 +24,11 @@
           </c-slot>
           <c-slot name="content">
             <div class="flex justify-between items-baseline mt-2">
-              <div class="text-end font-mono">
+              <div class="text-end tabular-nums">
                 <div class="text-subtle">{% translate 'average expenses' %}</div>
               </div>
               <div class="dotted-line flex-grow"></div>
-              <div class="text-end font-mono">
+              <div class="text-end tabular-nums">
                 <c-amount.display
                     :amount="data.average"
                     :prefix="data.currency.prefix"
@@ -38,11 +38,11 @@
               </div>
             </div>
             <div class="flex justify-between items-baseline mt-2">
-              <div class="text-end font-mono">
+              <div class="text-end tabular-nums">
                 <div class="text-subtle">{% translate 'liquid total' %}</div>
               </div>
               <div class="dotted-line flex-grow"></div>
-              <div class="text-end font-mono">
+              <div class="text-end tabular-nums">
                 <c-amount.display
                     :amount="data.total_current"
                     :prefix="data.currency.prefix"
@@ -52,11 +52,11 @@
               </div>
             </div>
             <div class="flex justify-between items-baseline mt-2">
-              <div class="text-end font-mono">
+              <div class="text-end tabular-nums">
                 <div class="text-subtle">{% translate 'months left' %}</div>
               </div>
               <div class="dotted-line flex-grow"></div>
-              <div class="text-end font-mono">
+              <div class="text-end tabular-nums">
                 <span>{{ data.months }}</span>
               </div>
             </div>

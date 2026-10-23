@@ -21,7 +21,14 @@
 
 **WYGIWYH** (_What You Get Is What You Have_) is a powerful, principles-first finance tracker designed for people who prefer a no-budget, straightforward approach to managing their money. With features like multi-currency support, customizable transactions, and a built-in dollar-cost averaging tracker, WYGIWYH helps you take control of your finances with simplicity and flexibility.
 
-<img src=".github/img/monthly_view.png" width="18%"></img> <img src=".github/img/yearly.png" width="18%"></img> <img src=".github/img/networth.png" width="18%"></img> <img src=".github/img/calendar.png" width="18%"></img> <img src=".github/img/all_transactions.png" width="18%"></img> 
+<p align="center">
+  <img src=".github/img/screenshots/monthly_light.png" alt="Monthly overview, light theme" width="49%" /> <img src=".github/img/screenshots/budget_analysis_light.png" alt="Budget analysis, light theme" width="49%" />
+  <img src=".github/img/screenshots/monthly_dark.png" alt="Monthly overview, dark theme" width="49%" /> <img src=".github/img/screenshots/budget_analysis_dark.png" alt="Budget analysis, dark theme" width="49%" />
+  <img src=".github/img/screenshots/monthly_budget_tab_light.png" alt="Monthly overview, Budget tab" width="32%" /> <img src=".github/img/screenshots/net_worth_light.png" alt="Net worth" width="32%" /> <img src=".github/img/screenshots/calendar_dark.png" alt="Calendar" width="32%" />
+</p>
+<p align="center">
+  <img src=".github/img/screenshots/phone_monthly.png" alt="Phone: monthly overview" width="24%" /> <img src=".github/img/screenshots/phone_budget_analysis.png" alt="Phone: budget analysis" width="24%" /> <img src=".github/img/screenshots/phone_transactions.png" alt="Phone: transactions" width="24%" /> <img src=".github/img/screenshots/phone_add.png" alt="Phone: add a transaction" width="24%" />
+</p>
 
 # Why WYGIWYH?
 Managing money can feel unnecessarily complex, but it doesn’t have to be. WYGIWYH (pronounced "wiggy-wih") is based on a simple principle:

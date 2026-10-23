@@ -20,7 +20,12 @@ from apps.transactions.forms import (
     TransferForm,
     BulkEditTransactionForm,
 )
-from apps.transactions.models import Transaction
+from apps.transactions.models import (
+    Transaction,
+    TransactionCategory,
+    TransactionEntity,
+    TransactionTag,
+)
 from apps.transactions.utils.calculations import (
     calculate_currency_totals,
     calculate_account_totals,
@@ -213,8 +218,6 @@ def transaction_simple_add(request):
             initial_data["category"] = int(category_param)
         except (ValueError, TypeError):
             # Try to find by name
-            from apps.transactions.models import TransactionCategory
-
             category = TransactionCategory.objects.filter(
                 name__iexact=category_param, active=True
             ).first()
@@ -242,10 +245,32 @@ def transaction_simple_add(request):
     else:
         form = TransactionForm(initial=initial_data)
 
+    # Data for the mobile paged UI (rendered alongside the desktop crispy form).
+    mobile_categories = list(
+        TransactionCategory.objects.filter(active=True)
+        .order_by("name")
+        .values("id", "name")
+    )
+    mobile_tags = list(
+        TransactionTag.objects.filter(active=True).order_by("name").values_list("name", flat=True)
+    )
+    mobile_entities = list(
+        TransactionEntity.objects.filter(active=True)
+        .order_by("name")
+        .values_list("name", flat=True)
+    )
+
     return render(
         request,
         "transactions/pages/add.html",
-        {"form": form},
+        {
+            "form": form,
+            "mobile_categories": mobile_categories,
+            "mobile_tags": mobile_tags,
+            "mobile_entities": mobile_entities,
+            "mobile_default_date": initial_data["date"].isoformat(),
+            "mobile_default_type": initial_data["type"].value,
+        },
     )
 
 

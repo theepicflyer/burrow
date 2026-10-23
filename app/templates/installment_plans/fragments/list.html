@@ -4,11 +4,10 @@
         hx_target="#generic-offcanvas">
 </c-ui.fab-single-action>
 <div class="container px-md-3 py-3 column-gap-5">
-  <div class="text-3xl font-bold font-mono w-full mb-3">
-    {% spaceless %}
-    <div>{% translate 'Installment Plans' %}</div>
-    {% endspaceless %}
-  </div>
+  <c-burrow.habitat kind="oak" mood="happy">
+    <div class="bh-habitat__eyebrow">{% translate 'Transactions' %}</div>
+    <h1 class="bh-page-title">{% translate 'Installment Plans' %}</h1>
+  </c-burrow.habitat>
 
   <div class="card bg-base-100 shadow-xl">
     <div class="card-header bg-base-200 p-4 rounded-box">

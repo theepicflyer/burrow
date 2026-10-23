@@ -194,7 +194,9 @@ class TransactionsFilter(django_filters.FilterSet):
         self.form.fields["date_start"].widget = AirDatePickerInput()
         self.form.fields["date_end"].widget = AirDatePickerInput()
 
-        self.form.fields["account"].queryset = Account.objects.all()
+        self.form.fields["account"].queryset = Account.objects.filter(
+            is_archived=False
+        ).order_by("kind", "name")
         category_choices = list(
             TransactionCategory.objects.values_list("name", "name").order_by("name")
         )

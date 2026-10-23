@@ -1,7 +1,9 @@
+from apps.api.models import APIToken
 from apps.common.decorators.demo import disabled_on_demo
 from apps.common.decorators.htmx import only_htmx
 from apps.common.decorators.user import htmx_login_required, is_superuser
 from apps.users.forms import (
+    APITokenForm,
     LoginForm,
     UserAddForm,
     UserSettingsForm,
@@ -149,6 +151,74 @@ def toggle_theme(request):
 
     return HttpResponse(
         status=204,
+    )
+
+
+@htmx_login_required
+@require_http_methods(["GET"])
+def api_tokens_index(request):
+    return render(
+        request,
+        "users/pages/api_tokens.html",
+    )
+
+
+@only_htmx
+@htmx_login_required
+@require_http_methods(["GET"])
+def api_tokens_list(request):
+    tokens = APIToken.objects.filter(user=request.user)
+
+    return render(
+        request,
+        "users/fragments/api_tokens_list.html",
+        {"tokens": tokens},
+    )
+
+
+@only_htmx
+@htmx_login_required
+@disabled_on_demo
+@require_http_methods(["GET", "POST"])
+def api_token_add(request):
+    if request.method == "POST":
+        form = APITokenForm(request.POST)
+        if form.is_valid():
+            token = form.save(commit=False)
+            token.user = request.user
+            token.save()
+            messages.success(request, _("API token created successfully"))
+
+            # Show the raw key once; it cannot be retrieved again.
+            return render(
+                request,
+                "users/fragments/api_token_created.html",
+                {"token": token},
+            )
+    else:
+        form = APITokenForm()
+
+    return render(
+        request,
+        "users/fragments/api_token_add.html",
+        {"form": form},
+    )
+
+
+@only_htmx
+@htmx_login_required
+@disabled_on_demo
+@require_http_methods(["DELETE"])
+def api_token_delete(request, pk):
+    token = get_object_or_404(APIToken, id=pk, user=request.user)
+    token.delete()
+    messages.success(request, _("API token revoked successfully"))
+
+    return HttpResponse(
+        status=204,
+        headers={
+            "HX-Trigger": "updated, hide_offcanvas",
+        },
     )
 
 

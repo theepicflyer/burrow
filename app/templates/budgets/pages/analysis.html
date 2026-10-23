@@ -1,0 +1,275 @@
+{% extends "layouts/base.html" %}
+{% load i18n %}
+{% load month_name %}
+{% load l10n %}
+
+{% block title %}{% translate 'Budget Analysis' %} :: {{ month|month_name }}/{{ year }}{% endblock %}
+
+{% block body_hyperscript %}
+  on keyup[code is 'ArrowLeft' and target.nodeName is 'BODY'] from body trigger 'previous_month' end
+  on keyup[code is 'ArrowRight' and target.nodeName is 'BODY'] from body trigger 'next_month' end
+{% endblock %}
+
+{% block content %}
+  <div class="container gap-y-3">
+
+    <c-burrow.habitat kind="oak" mood="{% if data.kpi.over_count %}worried{% else %}happy{% endif %}" class="mt-2">
+      <div class="bh-habitat__eyebrow">{% translate 'Budget Analysis' %}</div>
+      <h1 class="bh-page-title">{{ month|month_name }} {{ year }}</h1>
+      <div class="flex gap-2 mt-3">
+        <a role="button" class="btn btn-sm btn-circle" hx-boost="true"
+           aria-label="{% translate 'Previous month' %}"
+           hx-trigger="click, previous_month from:window"
+           href="{% url 'budgets_analysis_month' year=prev_year month=prev_month %}">
+          <i class="fa-solid fa-chevron-left"></i>
+        </a>
+        <a role="button" class="btn btn-sm btn-circle" hx-boost="true"
+           aria-label="{% translate 'Next month' %}"
+           hx-trigger="click, next_month from:window"
+           href="{% url 'budgets_analysis_month' year=next_year month=next_month %}">
+          <i class="fa-solid fa-chevron-right"></i>
+        </a>
+      </div>
+    </c-burrow.habitat>
+
+    {% if multi_currency %}
+      <div class="alert alert-info alert-soft text-xs mb-3" role="alert">
+        <i class="fa-solid fa-circle-info"></i>
+        {% translate "Amounts are summed across all currencies." %}
+      </div>
+    {% endif %}
+
+    {# Hero: the month as an oak wreath (a leaf greens for each share of the budget spent) + KPIs #}
+    <div class="card bg-base-100 mb-5">
+      <div class="card-body flex flex-col sm:flex-row items-center gap-6">
+        {% widthratio data.kpi.spent data.kpi.budget 26 as leaves %}
+        <c-burrow.wreath :leaves="leaves">
+          <span class="bh-ring__small">{% translate "Spent" %}</span>
+          <span class="bh-ring__big">{{ data.kpi.spent|floatformat:2 }}</span>
+          {% if data.kpi.pct is not None %}
+            <span class="bh-ring__small">{{ data.kpi.pct|floatformat:0 }}% {% translate "of budget" %}</span>
+          {% endif %}
+        </c-burrow.wreath>
+        <div class="bh-kpis flex-1 w-full">
+          <div class="bh-kpi">
+            <div class="bh-kpi__label">{% translate "Budgeted" %}</div>
+            <div class="bh-kpi__value">{{ data.kpi.budget|floatformat:2 }}</div>
+            <div class="bh-kpi__sub">{{ data.kpi.count }} {% translate "categories" %}</div>
+          </div>
+          <div class="bh-kpi">
+            <div class="bh-kpi__label">{% translate "Spent" %}</div>
+            <div class="bh-kpi__value">{{ data.kpi.spent|floatformat:2 }}</div>
+            {% if data.kpi.pct is not None %}
+              <div class="bh-kpi__sub">{{ data.kpi.pct|floatformat:0 }}% {% translate "of budget" %}</div>
+            {% endif %}
+          </div>
+          <div class="bh-kpi">
+            <div class="bh-kpi__label">{% translate "Remaining" %}</div>
+            <div class="bh-kpi__value {% if data.kpi.remaining < 0 %}text-error{% else %}text-success{% endif %}">
+              {{ data.kpi.remaining|floatformat:2 }}
+            </div>
+            <div class="bh-kpi__sub">{% translate "budgeted" %} − {% translate "all spend" %}</div>
+          </div>
+          <div class="bh-kpi">
+            <div class="bh-kpi__label">{% translate "Over budget" %}</div>
+            <div class="bh-kpi__value {% if data.kpi.over_count %}text-error{% endif %}">
+              {{ data.kpi.over_count }}
+            </div>
+            <div class="bh-kpi__sub">{% translate "categories" %}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row gap-y-3">
+      {# Budget levels — per normal category (server-rendered) #}
+      <div class="col-12 lg:col-6">
+        <c-ui.info-card color="green" icon="fa-solid fa-gauge-high" title="{% translate 'Budget levels' %}"
+                        help_text="{% translate 'Spending against the planned budget for each normal category this month.' %}">
+          {% if data.levels %}
+            <div class="flex flex-col gap-1 mt-2">
+              {% for lvl in data.levels %}
+                <div class="bh-level"
+                     role="button" tabindex="0"
+                     title="{% translate 'View transactions' %}"
+                     hx-get="{% url 'budget_category_transactions' category_id=lvl.id year=year month=month %}"
+                     hx-target="#generic-offcanvas" hx-swap="innerHTML">
+                  {% if lvl.has_budget %}
+                    {% with spent=lvl.spent|floatformat:2 budget=lvl.budget|floatformat:2 %}
+                      <c-burrow.meter :label="lvl.name" value_text="{{ spent }} / {{ budget }}" :percent="lvl.bar" :over="lvl.over" />
+                    {% endwith %}
+                  {% else %}
+                    {% with spent=lvl.spent|floatformat:2 %}
+                      <c-burrow.meter :label="lvl.name" value_text="{{ spent }}" percent="0" cap="" />
+                    {% endwith %}
+                    <span class="badge badge-ghost badge-sm mt-1">{% translate "no budget" %}</span>
+                  {% endif %}
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <c-msg.empty title="{% translate 'No budgeted spending this month' %}"
+                         who="kacang" mood="sleepy" remove-padding></c-msg.empty>
+          {% endif %}
+        </c-ui.info-card>
+      </div>
+
+      {# Spending trend — normal budget vs spent over the trailing window #}
+      <div class="col-12 lg:col-6">
+        <c-ui.info-card color="blue" icon="fa-solid fa-chart-line" title="{% translate 'Spending trend' %}"
+                        help_text="{% translate 'Planned budget vs actual spend, month by month. Switch between all normal categories and a single one.' %}">
+          <div class="mt-2 max-w-xs" _="install init_tom_select">
+            <select class="select select-sm"
+                    aria-label="{% translate 'Trend category' %}"
+                    _="on change call updateBudgetTrend(my value)">
+              <option value="all">{% translate "All categories" %}</option>
+              {% for c in data.trend.categories %}
+                <option value="{{ c.id }}">{{ c.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="chart-container relative h-80 w-full mt-2" _="init call setupBudgetTrend() end">
+            <canvas id="budgetTrendChart"></canvas>
+          </div>
+        </c-ui.info-card>
+      </div>
+    </div>
+
+    {# Sinking funds — current balances + balance-over-time #}
+    {% if data.sinking.series %}
+      <div class="row gap-y-3 mt-3">
+        <div class="col-12">
+          <c-ui.info-card color="yellow" icon="fa-solid fa-piggy-bank" title="{% translate 'Sinking funds' %}"
+                          help_text="{% translate 'Running balance of each sinking fund (allocations and income minus spending).' %}">
+            <div class="bh-stashes mt-3 mb-4">
+              {% for f in data.sinking.current %}
+                {% with balance=f.balance|floatformat:2 %}
+                  <c-burrow.stash :name="f.name" value_text="{{ balance }}" :acorns="f.acorns" />
+                {% endwith %}
+              {% endfor %}
+              {% if data.sinking.current|length > 1 %}
+                <div class="bh-kpi self-end">
+                  <div class="bh-kpi__label">{% translate "Total" %}</div>
+                  <div class="bh-kpi__value {% if data.sinking.total < 0 %}text-error{% endif %}">{{ data.sinking.total|floatformat:2 }}</div>
+                </div>
+              {% endif %}
+            </div>
+            <div class="chart-container relative h-96 w-full" _="init call setupSinkingChart() end">
+              <canvas id="sinkingChart"></canvas>
+            </div>
+          </c-ui.info-card>
+        </div>
+      </div>
+    {% endif %}
+
+    {{ data.trend|json_script:"budgetTrendData" }}
+    {{ data.sinking|json_script:"sinkingData" }}
+
+    <script>
+        function _budgetFmt(v) {
+            try {
+                return new Intl.NumberFormat(undefined, {
+                    minimumFractionDigits: 2, maximumFractionDigits: 2
+                }).format(v);
+            } catch (e) {
+                return Number(v).toFixed(2);
+            }
+        }
+
+        function setupBudgetTrend() {
+            const d = JSON.parse(document.getElementById('budgetTrendData').textContent);
+            const ctx = document.getElementById('budgetTrendChart');
+            if (!ctx) return;
+            const c = burrowColors();
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: d.labels,
+                    datasets: [
+                        {
+                            label: '{% translate "Budgeted" %}',
+                            data: d.all.budget,
+                            borderColor: c.sky,
+                            backgroundColor: burrowAlpha(c.sky, 0.1),
+                            borderDash: [6, 4],
+                            tension: 0.25,
+                            fill: false,
+                        },
+                        {
+                            label: '{% translate "Spent" %}',
+                            data: d.all.spent,
+                            borderColor: c.mint,
+                            backgroundColor: burrowAlpha(c.mint, 0.18),
+                            tension: 0.25,
+                            fill: true,
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {intersect: false, mode: 'index'},
+                    plugins: {
+                        legend: {position: 'top'},
+                        tooltip: {
+                            callbacks: {label: (c) => `${c.dataset.label}: ${_budgetFmt(c.parsed.y)}`},
+                        },
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {callback: (v) => v.toLocaleString()},
+                        },
+                    },
+                },
+            });
+        }
+
+        function updateBudgetTrend(value) {
+            const chart = Chart.getChart('budgetTrendChart');
+            if (!chart) return;
+            const d = JSON.parse(document.getElementById('budgetTrendData').textContent);
+            let series = d.all;
+            if (value !== 'all') {
+                series = d.categories.find((c) => String(c.id) === String(value)) || d.all;
+            }
+            chart.data.datasets[0].data = series.budget;
+            chart.data.datasets[1].data = series.spent;
+            chart.update();
+        }
+
+        function setupSinkingChart() {
+            const d = JSON.parse(document.getElementById('sinkingData').textContent);
+            const ctx = document.getElementById('sinkingChart');
+            if (!ctx) return;
+            const palette = burrowSeries();
+            const datasets = d.series.map((s, i) => ({
+                label: s.name,
+                data: s.data,
+                borderColor: palette[i % palette.length],
+                backgroundColor: burrowAlpha(palette[i % palette.length], 0.13),
+                tension: 0.25,
+                fill: false,
+            }));
+            new Chart(ctx, {
+                type: 'line',
+                data: {labels: d.labels, datasets: datasets},
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {intersect: false, mode: 'index'},
+                    plugins: {
+                        legend: {position: 'top'},
+                        tooltip: {
+                            callbacks: {label: (c) => `${c.dataset.label}: ${_budgetFmt(c.parsed.y)}`},
+                        },
+                    },
+                    scales: {
+                        y: {ticks: {callback: (v) => v.toLocaleString()}},
+                    },
+                },
+            });
+        }
+    </script>
+  </div>
+{% endblock content %}

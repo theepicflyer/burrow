@@ -220,6 +220,30 @@ class TransactionCategory(SharedObject):
             "Deactivated categories won't be able to be selected when creating new transactions"
         ),
     )
+    account = models.ForeignKey(
+        "accounts.Account",
+        on_delete=models.PROTECT,
+        related_name="categories",
+        null=True,
+        blank=True,
+        verbose_name=_("Account"),
+        help_text=_(
+            "Account this category belongs to. Transactions in this category "
+            "are forced onto this account."
+        ),
+    )
+    monthly_default_amount = models.DecimalField(
+        max_digits=42,
+        decimal_places=30,
+        null=True,
+        blank=True,
+        verbose_name=_("Monthly default amount"),
+        help_text=_(
+            "For sinking-account categories: the monthly auto-allocation "
+            "amount. For normal-account categories: the default monthly budget."
+        ),
+        validators=[validate_non_negative, validate_decimal_places],
+    )
 
     objects = SharedObjectManager()
     all_objects = models.Manager()  # Unfiltered manager
@@ -409,6 +433,16 @@ class Transaction(OwnedObject):
             self.reference_date = self.reference_date.replace(day=1)
         elif not self.reference_date and self.date:
             self.reference_date = self.date.replace(day=1)
+
+        # Category must belong to the same account as the transaction.
+        if self.category_id and self.category.account_id and self.category.account_id != self.account_id:
+            from django.core.exceptions import ValidationError as _VE
+            raise _VE({
+                "category": _(
+                    "Category '%(cat)s' belongs to account '%(acct)s'; "
+                    "the transaction's account must match."
+                ) % {"cat": self.category.name, "acct": self.category.account.name}
+            })
 
     def save(self, *args, **kwargs):
         # This is here so Django validation doesn't trigger an error before clean() is ran

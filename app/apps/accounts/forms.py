@@ -59,6 +59,7 @@ class AccountForm(forms.ModelForm):
         model = Account
         fields = [
             "name",
+            "kind",
             "group",
             "currency",
             "exchange_currency",
@@ -92,6 +93,7 @@ class AccountForm(forms.ModelForm):
         self.helper.form_method = "post"
         self.helper.layout = Layout(
             "name",
+            "kind",
             "group",
             Switch("is_asset"),
             Switch("is_archived"),

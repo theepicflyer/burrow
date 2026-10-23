@@ -5,11 +5,10 @@
         hx_target="#generic-offcanvas">
 </c-ui.fab-single-action>
 <div class="container">
-  <div class="text-3xl font-bold font-mono w-full mb-3">
-    {% spaceless %}
-      <div>{% translate 'Automatic Exchange Rates' %}</div>
-    {% endspaceless %}
-  </div>
+  <c-burrow.habitat kind="river" mood="busy">
+    <div class="bh-habitat__eyebrow">{% translate 'Management' %}</div>
+    <h1 class="bh-page-title">{% translate 'Automatic Exchange Rates' %}</h1>
+  </c-burrow.habitat>
 
   <div class="card bg-base-100 shadow-xl">
     <div class="card-header rounded-box">

@@ -1,0 +1,13 @@
+<c-vars name="" value_text="" target_text="" acorns="0" class="" />
+{#
+  Burrow Stash: a sinking fund as Kacang's buried acorn store.
+  acorns = round(share of target * 15), e.g. {% widthratio balance target 15 %}; 0 or less shows an empty chamber.
+#}
+<div class="bh-stash {{ class }}">
+  <div class="bh-stash__art">{% with acorns=acorns|add:0 %}{% include "burrow/scenes/stash_art.html" %}{% endwith %}</div>
+  <div class="bh-stash__label">
+    <span class="bh-stash__name">{{ name }}</span>
+    <span class="bh-stash__value">{{ value_text }}</span>
+    {% if target_text %}<span class="bh-stash__target">{{ target_text }}</span>{% endif %}
+  </div>
+</div>

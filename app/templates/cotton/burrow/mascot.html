@@ -1,0 +1,7 @@
+{% load static %}
+<c-vars who="kacang" mood="happy" size="96" class="" bounce="" />
+{# One of the Burrow cast (bao, kacang, gali, kayu) in a mood (happy, joy, busy, sleepy, worried, wow). Decorative. #}
+{% with "img/burrow/characters/"|add:who|add:"-"|add:mood|add:".svg" as art %}
+  <img class="bh-mascot {% if bounce %}bh-mascot--bounce{% endif %} {{ class }}" src="{% static art %}"
+       width="{{ size }}" height="{{ size }}" alt="" aria-hidden="true">
+{% endwith %}

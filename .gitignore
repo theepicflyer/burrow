@@ -165,3 +165,9 @@ cython_debug/
 node_modules/
 postgres_data/
 .prod.env
+
+# local dev artifacts
+wygiwyh_*.sql
+doctored_*.sql
+.claude/*.local.*
+.playwright-mcp/

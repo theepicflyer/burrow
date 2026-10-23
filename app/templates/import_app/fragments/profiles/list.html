@@ -16,11 +16,10 @@
 </c-components.fab>
 
 <div class="container">
-  <div class="text-3xl font-bold font-mono w-full mb-3">
-    {% spaceless %}
-    <div>{% translate 'Import Profiles' %}</div>
-    {% endspaceless %}
-  </div>
+  <c-burrow.habitat kind="river" mood="busy">
+    <div class="bh-habitat__eyebrow">{% translate 'Management' %}</div>
+    <h1 class="bh-page-title">{% translate 'Import Profiles' %}</h1>
+  </c-burrow.habitat>
 
   <div class="card bg-base-100 shadow-xl">
     <div class="card-body overflow-x-auto">

@@ -1,6 +1,13 @@
+{% comment %}
+`href` (optional): below the lg breakpoint clicking navigates there (the new
+paged add UI) instead of opening the htmx offcanvas. The caller's hx_trigger
+carries a `click[window.innerWidth>=1024]` filter so htmx only fires the
+desktop offcanvas request; below lg the onclick navigation runs instead.
+{% endcomment %}
 <div hx-get="{{ url }}"
       hx-trigger="{{ hx_trigger }}"
       hx-target="{{ hx_target }}"
-      hx-vals='{{ hx_vals }}'>
-      <span class="bg-neutral/60 text-neutral-content rounded-box p-2">{{ title }}</span>
+      hx-vals='{{ hx_vals }}'
+      {% if href %}onclick="if(window.innerWidth<1024){window.location.href='{{ href }}';}"{% endif %}>
+      <span class="bg-neutral text-neutral-content rounded-full px-3 py-1.5 font-semibold text-sm">{{ title }}</span>
       <button class="btn btn-lg btn-circle btn-{{color}}"><i class="{{ icon }} fa-fw"></i></button></div>

@@ -22,7 +22,12 @@
       {% endif %}
       <div class="card bg-base-100 shadow-2xl">
         <div class="card-body">
-          <h1 class="text-2xl card-title text-center mb-4">Login</h1>
+          {# Burrow: the World (all four homes together) belongs on login and onboarding. #}
+          {% include "burrow/scenes/world.html" %}
+          <div class="bh-brand justify-center mt-4 mb-2">
+            <span class="bh-brand__name">WYGIWYH</span>
+          </div>
+          <h1 class="sr-only">Login</h1>
           {% crispy form %}
 
           {% get_providers as socialaccount_providers %}

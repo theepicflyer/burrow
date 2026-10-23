@@ -24,7 +24,7 @@
   {% block extra_js_head %}{% endblock %}
 </head>
 
-<body class="font-mono">
+<body class="font-sans">
   <div _="install htmx_error_handler
             {% block body_hyperscript %}{% endblock %}" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
     {% include 'includes/mobile_navbar.html' %}
@@ -48,6 +48,7 @@
       {% include "includes/offcanvas.html" %}
       {% include "includes/toasts.html" %}
     </main>
+    {% include "includes/bottom_nav.html" %}
   </div>
   {% include "includes/tools/calculator.html" %}
   {% block extra_js_body %}
