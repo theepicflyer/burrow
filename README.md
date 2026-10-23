@@ -8,11 +8,11 @@
 
 Burrow is a hard fork of [WYGIWYH](https://github.com/eitchtee/WYGIWYH) by [Herculino Trotta](https://github.com/eitchtee). It keeps everything WYGIWYH does (multi-currency accounts, transaction rules, recurring and installment transactions, a DCA tracker, import/export, an API) and adds:
 
-* **Budgets.** A monthly budget per category, a budget tab on the monthly overview and a budget analysis page with trends.
-* **Sinking funds.** Accounts marked as sinking get a monthly allocation automatically, and their balance carries over month to month.
-* **Households.** A second login through OIDC that sees and edits the same shared accounts and categories.
-* **An MCP server** at `/mcp` with OAuth, so Claude and other agents can read and log transactions. See [docs/MCP.md](docs/MCP.md).
-* **The Burrow design system**: a new look, light and dark.
+* Budgets: a monthly budget per category, a budget tab on the monthly overview and a budget analysis page with trends.
+* Sinking funds: accounts marked as sinking get a monthly allocation automatically, and their balance carries over month to month.
+* Households: a second login through OIDC that sees and edits the same shared accounts and categories.
+* An MCP server at `/mcp` with OAuth, so Claude and other agents can read and log transactions. See [docs/MCP.md](docs/MCP.md).
+* The Burrow design system, with light and dark themes.
 
 Burrow does not track upstream. Changes from WYGIWYH may be brought over by hand, but the two have diverged.
 
