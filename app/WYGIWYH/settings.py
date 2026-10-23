@@ -614,6 +614,9 @@ else:
     }
 
 CACHALOT_UNCACHABLE_TABLES = ("django_migrations", "procrastinate_jobs")
+# TransactionTestCase flushes the DB between tests; cachalot would keep serving the
+# old ContentType rows and the flush then fails recreating them.
+CACHALOT_ENABLED = "test" not in sys.argv[1:2]
 
 # Procrastinate
 PROCRASTINATE_ON_APP_READY = "apps.common.procrastinate.on_app_ready"
