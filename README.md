@@ -27,7 +27,7 @@ Burrow does not track upstream. Changes from WYGIWYH may be brought over by hand
 
 # Running it
 
-You need [Docker](https://docs.docker.com/engine/install/) with [Compose](https://docs.docker.com/compose/install/). Images are published to `ghcr.io/theepicflyer/burrow` for amd64 and arm64: `:X.Y.Z` and `:latest` for releases, `:nightly` for every merge to `main`.
+You need [Docker](https://docs.docker.com/engine/install/) with [Compose](https://docs.docker.com/compose/install/). Images are published to `ghcr.io/theepicflyer/burrow` for amd64: `:X.Y.Z` and `:latest` for releases, `:nightly` for every merge to `main`.
 
 ```bash
 mkdir burrow && cd burrow
