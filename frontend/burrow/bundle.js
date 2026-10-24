@@ -282,14 +282,14 @@
         '<g transform="translate(36 42) scale(1.25)">' + TRACES.sunflower() + '</g><g transform="translate(76 68) scale(.9)">' + TRACES.sunflower() + '</g>' +
         tr('berry', 6, 112, .9) + tuft(30, 140) + tuft(118, 142, .8) + tuft(196, 140) +
         seedAt(150, 132, .7, 60) + seedAt(166, 138, .7, -30) + crumb(178, 134, 1, 20) + crumb(140, 138, .8, 70); },
-      ground: '<path class="hb-grass" d="M0 18 C60 2 120 2 200 14 C280 26 340 26 400 10 V48 H0 Z"/>',
+      ground: '<path class="hb-grass hb-ground" d="M0 18 C60 2 120 2 200 14 C280 26 340 26 400 10 V48 H0 Z"/><path class="hb-edge" d="M0 18 C60 2 120 2 200 14 C280 26 340 26 400 10"/>',
       far: '<path class="hb-far" d="M0 30 C60 6 140 10 200 26 C260 40 330 8 400 20 V60 H0 Z"/>' },
     oak: { who: 'squirrel', props: function () {
       return '<path class="hb-bark" d="M220 4 C176 10 146 16 116 30 C102 36 88 36 72 32"/><path class="hb-bark hb-bark--thin" d="M146 18 C138 8 128 2 116 -2 M100 33 C96 40 96 46 98 52"/>' +
         leafAt(70, 30, 1.1, -40) + leafAt(106, 40, 1, 30) + leafAt(158, 14, 1, -10) + leafAt(132, 30, .9, 150) + leafAt(186, 10, .9, 40) +
         line('M98 52 L98 58', 1.8) + acornAt(98, 66, .9, 0) + acornAt(18, 136, .8, -20) + acornAt(182, 138, .8, 25) +
         leafAt(36, 80, .7, 50, '#e9a53a') + leafAt(150, 96, .6, -30) + tr('mushroom', 132, 118, .8) + tuft(40, 142) + tuft(200, 142, .8); },
-      ground: '<path class="hb-grass" d="M0 14 C80 26 160 26 240 12 C300 2 360 4 400 16 V48 H0 Z"/>',
+      ground: '<path class="hb-grass hb-ground" d="M0 14 C80 26 160 26 240 12 C300 2 360 4 400 16 V48 H0 Z"/><path class="hb-edge" d="M0 14 C80 26 160 26 240 12 C300 2 360 4 400 16"/>',
       far: '<path class="hb-far" d="M0 26 C80 10 140 14 220 30 C290 44 350 18 400 24 V60 H0 Z"/>' },
     burrow: { who: 'molerat', props: function () {
       return tr('mound', 150, 104, 1.1) + tr('pebble', 18, 118, .7) +
@@ -302,7 +302,7 @@
       return '<path class="hb-stem" d="M14 150 C14 120 16 100 14 80 M24 150 C24 126 26 110 26 92 M110 150 C110 130 112 116 110 104"/>' +
         el(14, 76, 3.6, 10, '#8a5a3b', 1.8) + el(26, 88, 3.4, 9, '#8a5a3b', 1.8) + el(110, 100, 3, 8, '#8a5a3b', 1.8) +
         logs + tr('chips', 112, 120, .7) + tr('pebble', 186, 128, .6); },
-      ground: '<path class="hb-water" d="M0 16 C50 8 100 8 150 16 C200 24 250 24 300 16 C340 10 370 10 400 14 V48 H0 Z"/><path class="hb-ripple" d="M30 30 q10 -6 20 0 t20 0 M180 36 q10 -6 20 0 t20 0 M300 28 q10 -6 20 0 t20 0"/><ellipse class="hb-lily" cx="120" cy="28" rx="16" ry="4.5"/>',
+      ground: '<path class="hb-water hb-ground" d="M0 16 C50 8 100 8 150 16 C200 24 250 24 300 16 C340 10 370 10 400 14 V48 H0 Z"/><path class="hb-edge" d="M0 16 C50 8 100 8 150 16 C200 24 250 24 300 16 C340 10 370 10 400 14"/><path class="hb-ripple" d="M30 30 q10 -6 20 0 t20 0 M180 36 q10 -6 20 0 t20 0 M300 28 q10 -6 20 0 t20 0"/><ellipse class="hb-lily" cx="120" cy="28" rx="16" ry="4.5"/>',
       far: '<path class="hb-far" d="M0 34 C70 20 150 24 220 32 C300 40 350 24 400 28 V60 H0 Z"/>' }
   };
   function Habitat(p) {

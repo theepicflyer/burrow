@@ -111,6 +111,9 @@
 .hb-tunnel-line { fill: none; stroke: var(--soil-deep); stroke-width: 7; stroke-linecap: round; opacity: .7; }
 .hb-chamber { fill: var(--soil-deep); }
 .hb-water { fill: var(--water); stroke: var(--outline); stroke-width: 3; }
+/* habitat ground: the fill has no outline (its sides and bottom sit on the band's rounded clip); hb-edge draws the top line only, an even 3px however wide the band */
+.hb-ground { stroke: none; }
+.hb-edge { fill: none; stroke: var(--outline); stroke-width: 3; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .hb-ripple { fill: none; stroke: var(--paper); stroke-width: 3; stroke-linecap: round; opacity: .8; }
 .hb-stem { fill: none; stroke: var(--outline); stroke-width: 5; stroke-linecap: round; }
 .hb-leaf { fill: var(--mint); stroke: var(--outline); stroke-width: 2.5; stroke-linejoin: round; }
