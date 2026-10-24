@@ -91,26 +91,30 @@
     },
     /* Kacang: red squirrel, money's host. Ear tufts, white eye rings, feathery tail, holds an acorn. */
     squirrel: function (m) {
+      function flip(d) { return d.replace(/(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g, function (s, x, y) { return +(104 - x).toFixed(2) + ' ' + y; }); }
       var tail = 'M66 104 C90 108 108 96 109 78 C110 66 104 58 106 46 C108 32 100 16 84 12 C72 9 60 16 61 27 C62 35 71 38 77 33 C81 30 87 33 87 41 C87 53 79 61 81 75 C82 87 76 97 66 100 Z';
       var tufts = ['M106.5 75 C112 73 114.5 66.5 112.5 61.5 C110.5 66 108 67 105.5 66 Z', 'M105 56 C110.5 54 113 47.5 111 42.5 C109 47 106.5 48 104 47 Z', 'M101.5 33 C107 32 110 26 108.5 20.5 C105.5 25.5 103 26.5 100 25.5 Z', 'M87 14.5 C90.5 9 97 7 101.5 9.5 C96.5 10.5 93.5 12.5 92 16 Z', 'M93 102.5 C99.5 104.5 105 101 107 96.5 C103 98.5 99 98.5 96 97.5 Z', 'M66 14 C64 9 66 5 70 3.5 C69.5 7 70.5 10 72.5 11.5 Z'];
       var body = 'M52 60 C66 60 75 72 75 88 C75 102 65 111 52 111 C39 111 30 102 30 89 C30 74 38 60 52 60 Z';
       var head = 'M52 21 C64 21 72 29 72 40 C72 45 71 49 68 52 L72.5 55 L66.5 56.5 C63 60.5 58 63 52 63 C46 63 41 60.5 37.5 56.5 L31.5 55 L36 52 C33 49 32 45 32 40 C32 29 40 21 52 21 Z';
-      var ear = 'M37 32 C35 22 35 14 39 6 C43 11 47 18 47 28 Z', foot = 'M45 104 C39 105 29 106.5 24.5 110 C27 113.5 40 113.5 48 112 Z';
+      var ear = 'M37 32 C35.5 23 35.5 16 39 10 C43 14.5 47 20 47 28 Z', tuft = 'M37.6 13 C35.8 10.5 36.2 7.6 38.4 5.6 C39 7.8 40.4 8.6 42.2 8.2 C42 10.6 41 12.4 39.6 13.8 Z';
+      var inner = 'M39.8 26 C39 21 39.2 17 40.8 13.8 C42.6 17 43.8 21 43.8 25.5 Z';
+      /* hind feet, sitting: round toes forward, mirrored about the body's centre (x 52) */
+      var foot = 'M31 108.5 C31 104 36 102 42 102.5 C47.5 103 50.5 106 49.5 109.5 C45 112.5 34 112.5 31 108.5 Z', toes = 'M37.5 111.2 v-2.6 M42 111.4 v-2.6 M46 110.6 v-2.4';
       var parts = [[tail, C.squirrel]].concat(tufts.map(function (t) { return [t, C.squirrel]; }));
-      return shadow(64, 42) + figure(parts.concat([[body, C.squirrel], [foot, C.squirrelDark], [mirror(foot), C.squirrelDark], [ear, C.squirrel], [ear.replace(/(-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?)/g, function (q, x, y) { return (104 - x) + ' ' + y; }), C.squirrel], [head, C.squirrel]])) +
+      return shadow(64, 42) + figure(parts.concat([[body, C.squirrel], [foot, C.squirrel], [flip(foot), C.squirrel], [tuft, C.squirrelDark], [flip(tuft), C.squirrelDark], [ear, C.squirrel], [flip(ear), C.squirrel], [head, C.squirrel]])) +
         line('M84 20 C96 24 102 36 100 50 M96 62 C100 74 98 86 90 96 M72 18 C78 14 86 15 92 21', 3, C.tailLight, '.75') +
         line('M80 41 C84 52 78 62 80 74', 1.6, C.squirrelDark, '.55') +
-        line('M39 6 L37.5 1 M39 6 L41 1 M39 6 L35 2.5 M65 6 L66.5 1 M65 6 L63 1 M65 6 L69 2.5', 2) +
-        path('M39.5 26 C38.5 20 38.5 15 40.5 11 C42.5 15 44 20 44 25 Z', C.squirrelDark, 0, '.45') + path('M64.5 26 C65.5 20 65.5 15 63.5 11 C61.5 15 60 20 60 25 Z', C.squirrelDark, 0, '.45') +
+        path(inner, C.squirrelDark, 0, '.45') + path(flip(inner), C.squirrelDark, 0, '.45') +
         path('M52 68 C60 68 65 77 65 88 C65 100 59 106 52 106 C45 106 39 100 39 88 C39 77 44 68 52 68 Z', C.squirrelLight) +
         line('M64 84 C72 84 76 94 72.5 104', 1.8, C.squirrelDark, '.6') +
-        path('M40 50 C44 46.5 48 48 52 48 C56 48 60 46.5 64 50 C66 56 60 62.5 52 62.5 C44 62.5 38 56 40 50 Z', C.squirrelLight) +
-        el(44, 38.5, 6.4, 5.8, C.squirrelLight) + el(60, 38.5, 6.4, 5.8, C.squirrelLight) +
-        line('M44 53 L32 50 M44 55 L31 56 M60 53 L72 50 M60 55 L73 56', 1, INK, '.5') +
-        blush(39, 65, 49, 4) +
-        path('M49 49.2 C49 47.3 55 47.3 55 49.2 C55 50.8 53 51.8 52 51.8 C51 51.8 49 50.8 49 49.2 Z', INK) +
-        face(m, { x: 52, y: 38.5, dx: 8, r: 4.2, m: [52, 54], style: 'y', ms: .75, z: [76, 30], drop: [72, 32],
-          busy: path('M30 104 l3 -3 l2 3 Z M74 106 l3 -2 l1 3 Z', C.soil, 1.2) + '<circle cx="36" cy="100" r="1.6" fill="' + C.soil + '"/><circle cx="70" cy="101" r="1.4" fill="' + C.soil + '"/>' }) +
+        path(foot, C.squirrel, 1.8) + path(flip(foot), C.squirrel, 1.8) + line(toes + ' ' + flip(toes), 1.3, C.squirrelDark, '.8') +
+        path('M42 50 C44.5 46.8 48.5 47.2 52 47.2 C55.5 47.2 59.5 46.8 62 50 C64 55.5 59 60.5 52 60.5 C45 60.5 40 55.5 42 50 Z', C.squirrelLight) +
+        el(42.5, 41, 6, 5.9, C.squirrelLight) + el(61.5, 41, 6, 5.9, C.squirrelLight) +
+        line('M45 53 L33 50.5 M45 55 L32.5 56.5 M59 53 L71 50.5 M59 55 L71.5 56.5', 1, INK, '.5') +
+        blush(38, 66, 51.5, 3.6) +
+        path('M49.2 48.6 C49.2 46.9 54.8 46.9 54.8 48.6 C54.8 50.1 53 51.2 52 51.2 C51 51.2 49.2 50.1 49.2 48.6 Z', INK) + el(51, 48, 1.2, .7, '#fff', 0, '.6') +
+        face(m, { x: 52, y: 41, dx: 9.5, r: 4.6, m: [52, 53.6], style: 'y', ms: .75, z: [76, 30], drop: [72, 32],
+          busy: path('M28 102 l3 -3 l2 3 Z M76 104 l3 -2 l1 3 Z', C.soil, 1.2) + '<circle cx="27" cy="97" r="1.6" fill="' + C.soil + '"/><circle cx="78" cy="98" r="1.4" fill="' + C.soil + '"/>' }) +
         line('M38.5 84 C38.5 78 41 75.5 44 74.5 M65.5 84 C65.5 78 63 75.5 60 74.5', 1.6, C.squirrelDark, '.7') +
         acornAt(52, 77, 1.05, 0) +
         el(44.5, 76, 4.5, 3.6, C.squirrel, 1.6) + el(59.5, 76, 4.5, 3.6, C.squirrel, 1.6);
