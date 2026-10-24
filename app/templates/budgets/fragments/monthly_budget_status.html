@@ -13,7 +13,8 @@
               {% if r.budget %}
                 {% widthratio r.spent r.budget 100 as pct %}
                 {% if r.spent > r.budget %}
-                  <c-burrow.meter :label="r.category.name" value_text="{{ spent }} / {{ budget }}" :percent="pct" over="1" />
+                  {% widthratio r.budget r.spent 100 as limit %}
+                  <c-burrow.meter :label="r.category.name" value_text="{{ spent }} / {{ budget }}" :percent="pct" over="1" :limit="limit" />
                 {% else %}
                   <c-burrow.meter :label="r.category.name" value_text="{{ spent }} / {{ budget }}" :percent="pct" />
                 {% endif %}

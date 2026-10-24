@@ -96,7 +96,7 @@
                      hx-target="#generic-offcanvas" hx-swap="innerHTML">
                   {% if lvl.has_budget %}
                     {% with spent=lvl.spent|floatformat:2 budget=lvl.budget|floatformat:2 %}
-                      <c-burrow.meter :label="lvl.name" value_text="{{ spent }} / {{ budget }}" :percent="lvl.bar" :over="lvl.over" />
+                      <c-burrow.meter :label="lvl.name" value_text="{{ spent }} / {{ budget }}" :percent="lvl.bar" :over="lvl.over" :limit="lvl.limit" />
                     {% endwith %}
                   {% else %}
                     {% with spent=lvl.spent|floatformat:2 %}
