@@ -632,8 +632,9 @@ PWA_APP_ORIENTATION = "any"
 PWA_APP_START_URL = "/"
 PWA_APP_STATUS_BAR_COLOR = "default"
 PWA_APP_ICONS = [
-    {"src": "/static/img/pwa/icon-192x192.png", "sizes": "192x192", "purpose": "any maskable"},
-    {"src": "/static/img/pwa/icon-512x512.png", "sizes": "512x512", "purpose": "any maskable"},
+    {"src": "/static/img/pwa/icon-192x192.png", "sizes": "192x192", "purpose": "any"},
+    {"src": "/static/img/pwa/icon-512x512.png", "sizes": "512x512", "purpose": "any"},
+    {"src": "/static/img/pwa/maskable-512x512.png", "sizes": "512x512", "purpose": "maskable"},
 ]
 PWA_APP_ICONS_APPLE = [
     {"src": "/static/img/favicon/apple-icon-180x180.png", "sizes": "180x180"}
