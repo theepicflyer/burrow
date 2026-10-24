@@ -77,6 +77,8 @@ def budget_analysis(user, year: int, month: int, months: int = 12) -> dict:
                 "pct": pct,
                 "bar": min(pct, 100) if pct is not None else 0,  # clamped for <progress>
                 "over": over,
+                # where the budget falls on a track rescaled to the spend
+                "limit": float(budget / spent * 100) if over else None,
                 "has_budget": budget > 0,
             }
         )

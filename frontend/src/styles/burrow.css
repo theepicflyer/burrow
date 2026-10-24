@@ -39,7 +39,11 @@
 
   /* Meter driven by a --pct custom property (Django can't compute inline widths cleanly). */
   .bh-meter__fill { width: clamp(0%, var(--pct, 0%), 100%); background: var(--accent); }
-  .bh-meter.is-over .bh-meter__fill { background: var(--tomato); }
+  /* Over budget: the track spans the spend, mint up to the budget tick (--limit), tomato past it. */
+  .bh-meter.is-over .bh-meter__fill { width: 100%; background: linear-gradient(to right, var(--accent) 0 var(--limit, 0%), var(--tomato) var(--limit, 0%) 100%); }
+  .bh-meter.is-over .bh-meter__value { color: var(--tomato-text); font-weight: 600; }
+  .bh-meter.is-over .bh-meter__cap { left: 100%; }
+  .bh-meter__limit { position: absolute; top: -4px; bottom: -4px; left: var(--limit); width: 3px; margin-left: -1.5px; border-radius: 2px; background: var(--outline); pointer-events: none; }
   .bh-meter__cap { left: clamp(0%, var(--pct, 0%), 100%); }
 
   /* Card corner icon tiles: sticker tiles on the soft habitat tints. */
@@ -111,7 +115,7 @@
   .bh-bottomnav__peek { position: absolute; right: 26px; top: -40px; z-index: 0; pointer-events: none; }
   .bh-bottomnav__gap { display: none; width: 64px; flex: none; }
   body:has(.fab) .bh-bottomnav__gap { display: block; }
-  body:has(.fab:focus-within) .bh-bottomnav { opacity: 0; pointer-events: none; }
+  body:has(.fab:has(.fab-close):focus-within) .bh-bottomnav { opacity: 0; pointer-events: none; }
   .bh-bottomnav { transition: opacity .15s ease; }
   button.bh-nav__item { background: none; border: 0; font: inherit; cursor: pointer; }
   .bh-nav__pill i { font-size: 18px; }
