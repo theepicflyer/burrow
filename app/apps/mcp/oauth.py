@@ -152,6 +152,13 @@ _DCR_MAX_REDIRECT_URIS = 10
 
 
 def dcr_redirect_uri_allowed(redirect_uri: str) -> bool:
+    # DOT stores redirect_uris space-joined and splits them again, and urlsplit
+    # silently drops tabs/newlines, so any whitespace or control character
+    # could smuggle a second, unchecked URI past the ":*" host match.
+    if any(c.isspace() or ord(c) < 0x20 or ord(c) == 0x7F for c in redirect_uri):
+        return False
+    if urlsplit(redirect_uri).geturl() != redirect_uri:
+        return False
     for allowed in settings.MCP_DCR_ALLOWED_REDIRECT_URIS:
         if allowed.endswith(":*"):
             a = urlsplit(allowed[:-2])
@@ -206,8 +213,12 @@ def register_client(request, *args, **kwargs):
             "invalid_client_metadata", "grant_types must include authorization_code"
         )
 
+    # client_name is attacker-controlled and shown on the consent screen, so
+    # append where the code will actually go.
     name = meta.get("client_name")
-    name = (name if isinstance(name, str) and name else "MCP client")[:255]
+    name = name.strip() if isinstance(name, str) else ""
+    hosts = ", ".join(dict.fromkeys(urlsplit(u).hostname or "" for u in uris))
+    name = f"{(name or 'MCP client')[:200]} ({hosts})"[:255]
     Application = get_application_model()
     app = Application.objects.create(
         name=name,

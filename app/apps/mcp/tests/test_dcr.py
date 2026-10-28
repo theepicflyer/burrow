@@ -61,6 +61,24 @@ class DynamicClientRegistrationTests(TestCase):
             self.assertEqual(resp.json()["error"], "invalid_redirect_uri")
         self.assertFalse(get_application_model().objects.exists())
 
+    def test_whitespace_cannot_smuggle_extra_redirect(self):
+        # redirect_uris are stored space-joined and split again by DOT, so an
+        # embedded separator would register the second URI unchecked.
+        for uri in [
+            "http://localhost/ https://evil.example.com/cb",
+            "http://localhost/\thttps://evil.example.com/cb",
+            "http://localhost/\nhttps://evil.example.com/cb",
+            "http://localhost:8000/cb\x00",
+        ]:
+            resp = self.register(redirect_uris=[uri])
+            self.assertEqual(resp.status_code, 400, repr(uri))
+        self.assertFalse(get_application_model().objects.exists())
+
+    def test_consent_name_shows_redirect_host(self):
+        resp = self.register(client_name="Burrow official")
+        app = get_application_model().objects.get(client_id=resp.json()["client_id"])
+        self.assertEqual(app.name, "Burrow official (agent.meta.ai)")
+
     def test_confidential_request_is_issued_a_public_client(self):
         resp = self.register(token_endpoint_auth_method="client_secret_post")
         self.assertEqual(resp.status_code, 201)
