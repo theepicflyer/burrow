@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import ipaddress
 import json
+import re
 import socket
 import time
 from urllib.parse import urlsplit
@@ -149,20 +150,26 @@ def authorization_server_metadata(request, *args, **kwargs):
 # Dynamic Client Registration (RFC 7591), allowlisted redirect URIs only.
 # ---------------------------------------------------------------------------
 _DCR_MAX_REDIRECT_URIS = 10
+_RFC3986_URI = re.compile(r"[A-Za-z0-9\-._~:/?#\[\]@!$&'()*+,;=%]+")
 
 
 def dcr_redirect_uri_allowed(redirect_uri: str) -> bool:
-    # DOT stores redirect_uris space-joined and splits them again, and urlsplit
-    # silently drops tabs/newlines, so any whitespace or control character
-    # could smuggle a second, unchecked URI past the ":*" host match.
-    if any(c.isspace() or ord(c) < 0x20 or ord(c) == 0x7F for c in redirect_uri):
+    # The ":*" match trusts urlsplit's idea of the host, so the URI must parse
+    # the same way in a browser. Only RFC 3986 characters: whitespace would
+    # split into a second URI (DOT stores them space-joined), and browsers read
+    # "\" as "/" (http://evil\@localhost goes to evil). No userinfo either.
+    if not _RFC3986_URI.fullmatch(redirect_uri):
         return False
-    if urlsplit(redirect_uri).geturl() != redirect_uri:
+    r = urlsplit(redirect_uri)
+    if r.geturl() != redirect_uri or "@" in r.netloc:
+        return False
+    try:
+        r.port
+    except ValueError:
         return False
     for allowed in settings.MCP_DCR_ALLOWED_REDIRECT_URIS:
         if allowed.endswith(":*"):
             a = urlsplit(allowed[:-2])
-            r = urlsplit(redirect_uri)
             if r.scheme == a.scheme and r.hostname == a.hostname:
                 return True
         elif redirect_uri == allowed:
