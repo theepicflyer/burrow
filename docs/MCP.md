@@ -54,8 +54,7 @@ claude.ai then runs the OAuth 2.1 + PKCE handshake automatically; you only have 
    `client_id_metadata_document_supported: true` and
    `token_endpoint_auth_methods_supported: ["none"]`, so claude.ai uses the
    **CIMD** (Client-ID-Metadata-Document) path: its `client_id` is the URL
-   `https://claude.ai/oauth/mcp-oauth-client-metadata`. **There is no Dynamic
-   Client Registration endpoint** — none is needed.
+   `https://claude.ai/oauth/mcp-oauth-client-metadata`.
 4. claude.ai redirects you to **`/oauth/authorize/`** with a PKCE **S256**
    challenge and `resource=https://<your-host>/mcp`. The server validates the
    requested `redirect_uri` against the CIMD document (`https://claude.ai/api/mcp/
@@ -75,10 +74,30 @@ the exact `/mcp` URL you entered in claude.ai; a mismatch is rejected
 (`400 invalid_target`) so a token can never be minted for a different audience.
 
 The OAuth pieces live in `app/apps/mcp/oauth.py` (discovery metadata, CIMD client
-resolution, audience check) and `app/apps/mcp/permissions.py` (scope enforcement);
+resolution, Dynamic Client Registration, audience check) and `app/apps/mcp/permissions.py` (scope enforcement);
 `django-oauth-toolkit` supplies the authorize/token endpoints, PKCE and token
-storage. Only `/oauth/authorize/` and `/oauth/token/` are mounted — none of DOT's
+storage. Only `/oauth/authorize/`, `/oauth/token/` and `/oauth/register/` are mounted — none of DOT's
 application-management UI or OIDC discovery is exposed.
+
+### Clients without CIMD (Dynamic Client Registration)
+
+Clients that don't support CIMD, such as Meta's Muse agent, register through
+**`POST /oauth/register/`** (RFC 7591), which the auth-server metadata advertises
+as `registration_endpoint`. The rest of the flow (steps 4–6) is the same.
+
+An open registration endpoint would let any site register a client and receive
+authorization codes, so registration only accepts redirect URIs on the
+`MCP_DCR_ALLOWED_REDIRECT_URIS` setting (space-separated env var). The default
+covers claude.ai, claude.com, Meta Muse and loopback:
+
+```
+https://claude.ai/api/mcp/auth_callback https://claude.com/api/mcp/auth_callback https://agent.meta.ai/api/oauth/oauth/callback http://localhost:* http://127.0.0.1:*
+```
+
+A trailing `:*` matches any port and path on that scheme and host. Setting the
+variable replaces the default, so include the defaults you still want. Every
+registered client is public (no secret) and must use PKCE; a request for a
+confidential client is answered with a public one.
 
 ## Connecting from the Claude Code CLI
 

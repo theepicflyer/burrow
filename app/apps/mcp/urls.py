@@ -12,8 +12,9 @@ ViewSets (``TokenScopePermission`` for API tokens, ``OAuthScopePermission``
 for OAuth tokens).
 
 The OAuth ``authorize``/``token`` endpoints come from django-oauth-toolkit
-(mounted under ``/oauth/``); the discovery ``.well-known`` documents and the
-CIMD client resolution are hand-built in ``apps.mcp.oauth``.
+(mounted under ``/oauth/``); the discovery ``.well-known`` documents, CIMD client
+resolution and Dynamic Client Registration are hand-built in
+``apps.mcp.oauth``.
 """
 
 from django.http import JsonResponse
@@ -97,9 +98,10 @@ urlpatterns = [
         oauth.authorization_server_metadata,
         name="oauth_authorization_server_metadata",
     ),
-    # django-oauth-toolkit's authorize/token endpoints (PKCE, grant, token).
-    # Only these two are mounted -- NOT DOT's application-management UI or its
-    # OIDC discovery -- to keep the public OAuth surface minimal. The
+    # django-oauth-toolkit's authorize/token endpoints (PKCE, grant, token),
+    # plus our allowlisted registration endpoint. DOT's application-management
+    # UI and OIDC discovery are NOT mounted, to keep the public OAuth surface
+    # minimal. The
     # ``oauth2_provider`` namespace is what reverse() targets in apps.mcp.oauth.
     path(
         "oauth/",
@@ -115,6 +117,11 @@ urlpatterns = [
                         "token/",
                         _TokenView.as_view(),
                         name="token",
+                    ),
+                    path(
+                        "register/",
+                        oauth.register_client,
+                        name="register",
                     ),
                 ],
                 "oauth2_provider",
