@@ -74,6 +74,18 @@ class DynamicClientRegistrationTests(TestCase):
             self.assertEqual(resp.status_code, 400, repr(uri))
         self.assertFalse(get_application_model().objects.exists())
 
+    def test_authority_tricks_rejected(self):
+        # Python's urlsplit reads these hosts as localhost; browsers don't.
+        for uri in [
+            "http://evil.example.com\\@localhost/cb",
+            "http://evil.example.com@localhost/cb",
+            "http://user:pass@localhost/cb",
+            "http://localhost:notaport/cb",
+        ]:
+            resp = self.register(redirect_uris=[uri])
+            self.assertEqual(resp.status_code, 400, repr(uri))
+        self.assertFalse(get_application_model().objects.exists())
+
     def test_consent_name_shows_redirect_host(self):
         resp = self.register(client_name="Burrow official")
         app = get_application_model().objects.get(client_id=resp.json()["client_id"])
