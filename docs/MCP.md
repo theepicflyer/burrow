@@ -91,7 +91,7 @@ authorization codes, so registration only accepts redirect URIs on the
 covers claude.ai, claude.com, Meta Muse and loopback:
 
 ```
-https://claude.ai/api/mcp/auth_callback https://claude.com/api/mcp/auth_callback https://agent.meta.ai/api/oauth/oauth/callback http://localhost:* http://127.0.0.1:*
+https://claude.ai/api/mcp/auth_callback https://claude.com/api/mcp/auth_callback https://agent.meta.ai/api/hatch/oauth/callback http://localhost:* http://127.0.0.1:*
 ```
 
 A trailing `:*` matches any port and path on that scheme and host. Setting the

@@ -541,7 +541,7 @@ MCP_DCR_ALLOWED_REDIRECT_URIS = os.getenv(
     "MCP_DCR_ALLOWED_REDIRECT_URIS",
     "https://claude.ai/api/mcp/auth_callback "
     "https://claude.com/api/mcp/auth_callback "
-    "https://agent.meta.ai/api/oauth/oauth/callback "
+    "https://agent.meta.ai/api/hatch/oauth/callback "
     "http://localhost:* http://127.0.0.1:*",
 ).split()
 

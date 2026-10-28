@@ -9,7 +9,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from oauth2_provider.models import get_application_model
 
-MUSE_CALLBACK = "https://agent.meta.ai/api/oauth/oauth/callback"
+MUSE_CALLBACK = "https://agent.meta.ai/api/hatch/oauth/callback"
 ALLOWED = [
     "https://claude.ai/api/mcp/auth_callback",
     MUSE_CALLBACK,
