@@ -533,6 +533,18 @@ DJANGO_MCP_AUTHENTICATION_CLASSES = [
 # we provide our own tools, so keep it off to avoid an extra surprise tool.
 DJANGO_MCP_GET_SERVER_INSTRUCTIONS_TOOL = False
 
+# Callbacks a client may register through Dynamic Client Registration
+# (/oauth/register/), for agents without CIMD support. An open DCR endpoint
+# would hand authorization codes to any site, so it is an allowlist; a trailing
+# ":*" matches any port and path on that scheme and host (loopback clients).
+MCP_DCR_ALLOWED_REDIRECT_URIS = os.getenv(
+    "MCP_DCR_ALLOWED_REDIRECT_URIS",
+    "https://claude.ai/api/mcp/auth_callback "
+    "https://claude.com/api/mcp/auth_callback "
+    "https://agent.meta.ai/api/hatch/oauth/callback "
+    "http://localhost:* http://127.0.0.1:*",
+).split()
+
 # OAuth 2.1 for the claude.ai MCP web connector. django-oauth-toolkit supplies
 # the authorize/token endpoints, PKCE and token storage; the discovery docs and
 # CIMD client resolution are hand-built in apps/mcp/oauth.py. See docs/MCP.md.

@@ -3,13 +3,12 @@
 All the hand-built OAuth pieces that ``django-oauth-toolkit`` (DOT) does not
 ship live here, in one auditable place, so the security-critical surface is a
 single file. DOT provides the OAuth 2.1 core (PKCE, the authorize/token
-endpoints, token storage); this module adds the four things the MCP
+endpoints, token storage); this module adds the five things the MCP
 connector handshake needs on top:
 
 1. **Discovery metadata** -- RFC 9728 protected-resource metadata and RFC 8414
    authorization-server metadata, served as plain JSON with no auth, with the
-   flags that make claude.ai pick the CIMD (client-id-metadata-document) path
-   and never probe a (non-existent) Dynamic Client Registration endpoint.
+   flags that make claude.ai pick the CIMD (client-id-metadata-document) path.
 
 2. **The 401 challenge** -- an unauthenticated ``/mcp`` request returns
    ``401`` with ``WWW-Authenticate: Bearer resource_metadata="..."`` so the
@@ -19,10 +18,14 @@ connector handshake needs on top:
    ``https://claude.ai/oauth/mcp-oauth-client-metadata``), validate the
    requested ``redirect_uri`` with the same two-branch logic Home Assistant's
    ``indieauth.verify_redirect_uri`` uses, then auto-provision a public DOT
-   ``Application`` so the rest of DOT's flow works unchanged. This replaces an
-   open Dynamic Client Registration endpoint.
+   ``Application`` so the rest of DOT's flow works unchanged.
 
-4. **Audience validation** (RFC 8707) -- the ``resource`` parameter, if sent,
+4. **Dynamic Client Registration** (RFC 7591) -- for clients without CIMD
+   (e.g. Meta's Muse agent). Only redirect URIs on
+   ``MCP_DCR_ALLOWED_REDIRECT_URIS`` are accepted, and every client is public
+   and PKCE-only, so the endpoint can't be used to send codes elsewhere.
+
+5. **Audience validation** (RFC 8707) -- the ``resource`` parameter, if sent,
    must equal this MCP server's canonical URI.
 
 The OAuth read/write **scope** enforcement on tool dispatch lives next door in
@@ -34,6 +37,7 @@ from __future__ import annotations
 import ipaddress
 import json
 import socket
+import time
 from urllib.parse import urlsplit
 
 import requests
@@ -41,6 +45,7 @@ from django.conf import settings
 from django.http import HttpResponse, JsonResponse
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 
 from oauth2_provider.models import get_application_model
 from oauth2_provider.oauth2_validators import OAuth2Validator
@@ -115,8 +120,8 @@ def authorization_server_metadata(request, *args, **kwargs):
 
     The two CIMD flags are load-bearing: ``client_id_metadata_document_
     supported`` plus ``token_endpoint_auth_methods_supported: ["none"]`` make
-    claude.ai deterministically use a URL ``client_id`` (CIMD) and never DCR-
-    probe a missing ``/register`` endpoint."""
+    claude.ai use a URL ``client_id`` (CIMD) even though a
+    ``registration_endpoint`` is advertised for clients without CIMD."""
     return JsonResponse(
         {
             "issuer": request.build_absolute_uri("/")[:-1],
@@ -126,6 +131,9 @@ def authorization_server_metadata(request, *args, **kwargs):
             "token_endpoint": request.build_absolute_uri(
                 reverse("oauth2_provider:token")
             ),
+            "registration_endpoint": request.build_absolute_uri(
+                reverse("oauth2_provider:register")
+            ),
             "scopes_supported": ["mcp:read", "mcp:write"],
             "response_types_supported": ["code"],
             "response_modes_supported": ["query"],
@@ -134,6 +142,94 @@ def authorization_server_metadata(request, *args, **kwargs):
             "token_endpoint_auth_methods_supported": ["none"],
             "client_id_metadata_document_supported": True,
         }
+    )
+
+
+# ---------------------------------------------------------------------------
+# Dynamic Client Registration (RFC 7591), allowlisted redirect URIs only.
+# ---------------------------------------------------------------------------
+_DCR_MAX_REDIRECT_URIS = 10
+
+
+def dcr_redirect_uri_allowed(redirect_uri: str) -> bool:
+    for allowed in settings.MCP_DCR_ALLOWED_REDIRECT_URIS:
+        if allowed.endswith(":*"):
+            a = urlsplit(allowed[:-2])
+            r = urlsplit(redirect_uri)
+            if r.scheme == a.scheme and r.hostname == a.hostname:
+                return True
+        elif redirect_uri == allowed:
+            return True
+    return False
+
+
+def _registration_error(error: str, description: str) -> JsonResponse:
+    return JsonResponse(
+        {"error": error, "error_description": description}, status=400
+    )
+
+
+@csrf_exempt
+@require_POST
+def register_client(request, *args, **kwargs):
+    """RFC 7591 registration. Requested auth method, grants and scopes are not
+    rejected but normalised: the client is always public with PKCE, gets
+    authorization_code + refresh_token, and scope is decided at /authorize."""
+    try:
+        meta = json.loads(request.body or b"{}")
+    except ValueError:
+        return _registration_error("invalid_client_metadata", "Body is not JSON")
+    if not isinstance(meta, dict):
+        return _registration_error("invalid_client_metadata", "Body must be an object")
+
+    uris = meta.get("redirect_uris")
+    if (
+        not isinstance(uris, list)
+        or not uris
+        or len(uris) > _DCR_MAX_REDIRECT_URIS
+        or not all(isinstance(u, str) and u for u in uris)
+    ):
+        return _registration_error(
+            "invalid_redirect_uri", "redirect_uris must be a non-empty list"
+        )
+    for uri in uris:
+        if not dcr_redirect_uri_allowed(uri):
+            return _registration_error(
+                "invalid_redirect_uri", f"Redirect URI is not allowed: {uri}"
+            )
+    if "code" not in (meta.get("response_types") or ["code"]):
+        return _registration_error(
+            "invalid_client_metadata", "response_types must include code"
+        )
+    if "authorization_code" not in (meta.get("grant_types") or ["authorization_code"]):
+        return _registration_error(
+            "invalid_client_metadata", "grant_types must include authorization_code"
+        )
+
+    name = meta.get("client_name")
+    name = (name if isinstance(name, str) and name else "MCP client")[:255]
+    Application = get_application_model()
+    app = Application.objects.create(
+        name=name,
+        client_type=Application.CLIENT_PUBLIC,
+        authorization_grant_type=Application.GRANT_AUTHORIZATION_CODE,
+        redirect_uris=" ".join(uris),
+        client_secret="",
+        skip_authorization=False,
+        user=None,
+    )
+    return JsonResponse(
+        {
+            "client_id": app.client_id,
+            "client_id_issued_at": int(time.time()),
+            "client_name": name,
+            "redirect_uris": uris,
+            "grant_types": ["authorization_code", "refresh_token"],
+            "response_types": ["code"],
+            "token_endpoint_auth_method": "none",
+            "scope": " ".join(OAUTH_SCOPES),
+        },
+        status=201,
     )
 
 
@@ -238,9 +334,8 @@ class MCPOAuth2Validator(OAuth2Validator):
     When ``client_id`` is a URL and no ``Application`` row exists yet, validate
     the requested ``redirect_uri`` (CIMD) and create a public, PKCE-only
     ``Application`` keyed on that URL. After that, DOT's stock flow (PKCE,
-    grant, token) runs unchanged. We never expose a public registration
-    endpoint -- provisioning only happens for a client_id that passes redirect
-    validation during a real authorize request.
+    grant, token) runs unchanged. Provisioning only happens for a client_id
+    that passes redirect validation during a real authorize request.
     """
 
     def _resolve_cimd_application(self, client_id, request):
