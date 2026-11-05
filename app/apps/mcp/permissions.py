@@ -1,7 +1,8 @@
-"""OAuth read/write scope enforcement for the MCP / API surface.
+"""OAuth read/write scope enforcement for the REST API (``/api/``).
 
 ``apps.api.permissions.TokenScopePermission`` only knows about our own
-``APIToken``s; it does nothing for an OAuth Bearer token. This permission is
+``APIToken``s; it does nothing for an OAuth Bearer token. (MCP tools check scope
+themselves in ``apps.ledger.mcp``.) This permission is
 its OAuth counterpart: it maps ``mcp:read`` to SAFE (read) HTTP methods and
 ``mcp:write`` to unsafe (write) methods, and denies a token that lacks the
 scope its method needs.
