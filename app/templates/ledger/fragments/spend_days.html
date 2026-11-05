@@ -1,0 +1,14 @@
+{% load ledger %}
+{% for d, rows in days %}
+  <h2 class="day">{% if d == today %}Today{% else %}{{ d|date:"D j M" }}{% if d.year != this_year %} {{ d.year }}{% endif %}{% endif %}<span class="day__line" aria-hidden="true"></span></h2>
+  <div class="list">
+    {% for t in rows %}{% include "ledger/partials/spend_row.html" %}{% endfor %}
+  </div>
+{% endfor %}
+{% if page.has_next %}
+  <div class="more" id="more-{{ page.next_page_number }}">
+    <button type="button" class="bh-btn bh-btn--secondary bh-btn--sm"
+            hx-get="{% url 'ledger:spends' %}?{% if filters.q %}q={{ filters.q|urlencode }}&{% endif %}{% if filters.month %}month={{ filters.month }}&{% endif %}{% if filters.category %}category={{ filters.category }}&{% endif %}page={{ page.next_page_number }}"
+            hx-target="#more-{{ page.next_page_number }}" hx-swap="outerHTML">Load older spends</button>
+  </div>
+{% endif %}

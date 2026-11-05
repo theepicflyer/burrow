@@ -1,0 +1,45 @@
+{% extends "ledger/base.html" %}
+{% load ledger %}
+{% block title %}Spends{% endblock %}
+{% block content %}
+<c-burrow.habitat kind="burrow" mood="{% if filtered and not count %}worried{% else %}happy{% endif %}">
+  <span class="bh-habitat__eyebrow">History</span>
+  <h1 class="page-title">Spends</h1>
+  <p class="bh-habitat__sub">{% if filtered %}{{ count }} found · {% money total %}{% else %}{{ count }} in all{% endif %}</p>
+</c-burrow.habitat>
+
+<form class="filters" method="get" action="{% url 'ledger:spends' %}"
+      hx-get="{% url 'ledger:spends' %}" hx-trigger="input changed delay:300ms from:input[name=q], change from:select"
+      hx-target="#results" hx-select="#results" hx-swap="outerHTML" hx-push-url="true" role="search">
+  <label class="input input--affix">
+    {% icon 'search' 20 %}
+    <span class="sr-only">Search</span>
+    <input type="search" name="q" value="{{ filters.q }}" placeholder="Search titles and notes" enterkeyhint="search">
+  </label>
+  <div class="filters__row">
+    <label><span class="sr-only">Month</span>
+      <select class="select" name="month">
+        <option value="">All months</option>
+        {% for m in months %}<option value="{{ m|date:'Y-m' }}" {% if filters.month == m|date:'Y-m' %}selected{% endif %}>{{ m|date:"F Y" }}</option>{% endfor %}
+      </select>
+    </label>
+    <label><span class="sr-only">Category</span>
+      <select class="select" name="category">
+        <option value="">All categories</option>
+        {% for c in categories %}<option value="{{ c.id }}" {% if filters.category == c.id|stringformat:'s' %}selected{% endif %}>{{ c.name }}{% if c.archived %} (archived){% endif %}</option>{% endfor %}
+      </select>
+    </label>
+  </div>
+  <noscript><button class="bh-btn bh-btn--secondary bh-btn--sm" type="submit">Search</button></noscript>
+</form>
+
+<div id="results">
+  {% if days %}
+    {% include "ledger/fragments/spend_days.html" %}
+  {% elif filtered %}
+    <div class="bh-card"><c-ledger.empty who="" title="No matches">Gali dug everywhere. Try a shorter word or another month.</c-ledger.empty></div>
+  {% else %}
+    <div class="bh-card"><c-ledger.empty who="" title="No spends yet">Tap the plus to add your first one.</c-ledger.empty></div>
+  {% endif %}
+</div>
+{% endblock %}

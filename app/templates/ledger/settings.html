@@ -1,0 +1,119 @@
+{% extends "ledger/base.html" %}
+{% load ledger static %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<c-burrow.habitat kind="river" mood="happy">
+  <span class="bh-habitat__eyebrow">Household</span>
+  <h1 class="page-title">Settings</h1>
+  <p class="bh-habitat__sub">Categories, budgets and funds, recurring spends</p>
+</c-burrow.habitat>
+
+<div class="stack">
+  <section class="bh-card" aria-labelledby="budgets-title">
+    <div class="bh-card__head">
+      <h2 class="bh-card__title section-title" id="budgets-title">Budgets</h2>
+      <a class="card-link" href="{% url 'ledger:budgets_edit' %}">Edit amounts</a>
+    </div>
+    {% for r in budget_rows %}
+      <a class="setting" href="{% url 'ledger:category' r.cat.id %}">
+        <span class="tile" aria-hidden="true">{{ r.cat.name|first|upper }}</span>
+        <span class="grow setting__title">{{ r.cat.name }}</span>
+        <span class="setting__value">{% money r.amount %} a month</span>
+      </a>
+    {% empty %}
+      <p class="small muted">No budget categories yet.</p>
+    {% endfor %}
+    <div class="actions" style="margin-top:12px"><a class="bh-btn bh-btn--secondary bh-btn--sm" href="{% url 'ledger:category_new' %}?kind=budget">{% icon 'plus' 18 %} Add a category</a></div>
+  </section>
+
+  <section class="bh-card" aria-labelledby="funds-title">
+    <div class="bh-card__head"><h2 class="bh-card__title section-title" id="funds-title">Sinking funds</h2></div>
+    {% for r in fund_rows %}
+      <a class="setting" href="{% url 'ledger:category' r.cat.id %}">
+        <span class="tile tile--fund"><img class="bh-trace" src="{% static 'img/burrow/traces/acorn.svg' %}" width="26" height="26" alt=""></span>
+        <span class="grow"><span class="setting__title">{{ r.cat.name }}</span><br><span class="small muted">+{% money r.amount %} on the 1st of each month</span></span>
+        <span class="setting__value {% if r.balance < 0 %}over-text{% endif %}">{% money r.balance %}</span>
+      </a>
+    {% empty %}
+      <p class="small muted">No funds yet. A fund grows by a set amount each month, for spends that come in lumps: car servicing, gifts, travel.</p>
+    {% endfor %}
+    <div class="actions" style="margin-top:12px"><a class="bh-btn bh-btn--secondary bh-btn--sm" href="{% url 'ledger:category_new' %}?kind=fund">{% icon 'plus' 18 %} Add a fund</a></div>
+  </section>
+
+  <section class="bh-card" aria-labelledby="rec-title">
+    <a class="setting" href="{% url 'ledger:recurring' %}">
+      <span class="tile" aria-hidden="true">{% icon 'repeat' 22 %}</span>
+      <span class="grow"><span class="setting__title" id="rec-title">Recurring spends</span><br><span class="small muted">{{ recurring_count }} active</span></span>
+      {% icon 'chevron-right' 20 %}
+    </a>
+    {% if archived_rows %}
+      <details>
+        <summary class="small muted" style="padding:12px 0">Archived categories ({{ archived_rows|length }})</summary>
+        {% for r in archived_rows %}
+          <a class="setting" href="{% url 'ledger:category' r.cat.id %}"><span class="grow">{{ r.cat.name }}</span><span class="setting__value">{{ r.cat.get_kind_display }}</span></a>
+        {% endfor %}
+      </details>
+    {% endif %}
+  </section>
+
+  <section class="bh-card" aria-labelledby="app-title">
+    <div class="bh-card__head"><h2 class="bh-card__title section-title" id="app-title">App</h2></div>
+    <div class="form-grid">
+      <div class="field">
+        <span class="field__label">Theme</span>
+        <div class="seg" role="radiogroup" aria-label="Theme">
+          <label><input type="radio" name="theme" value="system"><span class="bh-chip">Match device</span></label>
+          <label><input type="radio" name="theme" value="light"><span class="bh-chip">{% icon 'sun' 16 %} Light</span></label>
+          <label><input type="radio" name="theme" value="dark"><span class="bh-chip">{% icon 'moon' 16 %} Dark</span></label>
+        </div>
+      </div>
+      <form method="post" action="{% url 'ledger:settings_save' %}" class="row row--wrap" style="align-items:flex-end">
+        {% csrf_token %}
+        <div class="field grow">
+          <label for="id_currency">Currency symbol</label>
+          <input class="input" id="id_currency" name="currency" value="{{ settings_form.currency.value }}" maxlength="8">
+        </div>
+        <button class="bh-btn bh-btn--secondary" type="submit">Save</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="bh-card" id="agents" aria-labelledby="agents-title">
+    <div class="bh-card__head"><h2 class="bh-card__title section-title" id="agents-title">Agents (MCP)</h2></div>
+    <p class="small muted" style="margin-top:0">Connect an AI agent to read your spends and budgets. Add this URL as a custom connector; claude.ai signs in with your Burrow login. Command-line clients can use a token instead.</p>
+    <code class="code">{{ mcp_url }}</code>
+    {% if new_token %}
+      <div class="note note--tint" style="margin-top:12px">
+        <strong>{{ new_token.name }}</strong>: copy this token now, it won't be shown again.
+        <code class="code" style="margin-top:8px">{{ new_token.key }}</code>
+      </div>
+    {% endif %}
+    {% for t in tokens %}
+      <div class="setting">
+        {% icon 'key' 20 %}
+        <span class="grow"><span class="setting__title">{{ t.name }}</span><br><span class="small muted">{{ t.get_scope_display }} · {% if t.last_used_at %}used {{ t.last_used_at|timesince }} ago{% else %}never used{% endif %}</span></span>
+        <form method="post" action="{% url 'ledger:token_delete' t.id %}">{% csrf_token %}<button class="bh-btn bh-btn--ghost bh-btn--sm bh-btn--danger" type="submit">Revoke</button></form>
+      </div>
+    {% endfor %}
+    <form method="post" action="{% url 'ledger:token_create' %}" class="form-grid" style="margin-top:12px">
+      {% csrf_token %}
+      <div class="row row--wrap" style="align-items:flex-end">
+        <div class="field grow"><label for="tok-name">Token name</label><input class="input" id="tok-name" name="name" placeholder="e.g. Laptop agent"></div>
+        <div class="field"><label for="tok-scope">Access</label>
+          <select class="select" id="tok-scope" name="scope"><option value="read_only">Read only</option><option value="read_write">Read and write</option></select>
+        </div>
+        <button class="bh-btn bh-btn--secondary" type="submit">{% icon 'plus' 18 %} Create token</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="bh-card" aria-labelledby="acct-title">
+    <div class="bh-card__head"><h2 class="bh-card__title section-title" id="acct-title">Account</h2></div>
+    <p class="small muted" style="margin-top:0">Signed in as {{ request.user.email }}. Everyone who signs in shares one household ledger.</p>
+    <div class="actions">
+      <form method="post" action="{% url 'ledger:logout' %}">{% csrf_token %}<button class="bh-btn bh-btn--secondary" type="submit">{% icon 'logout' 18 %} Sign out</button></form>
+      <a class="bh-btn bh-btn--ghost bh-btn--sm" href="/legacy/">Old WYGIWYH screens</a>
+    </div>
+  </section>
+</div>
+{% endblock %}

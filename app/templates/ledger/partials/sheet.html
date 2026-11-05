@@ -1,0 +1,90 @@
+{% load static ledger %}
+<div class="sheet" id="sheet" hidden
+     data-create="{% url 'ledger:spend_create' %}"
+     data-update="{% url 'ledger:spend_update' 0 %}"
+     data-delete="{% url 'ledger:spend_delete' 0 %}">
+  <div class="sheet__scrim" data-close></div>
+  <section class="sheet__panel" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+    <div class="sheet__head">
+      <h2 class="sheet__title" id="sheet-title">Add spend</h2>
+      <button type="button" class="bh-btn bh-btn--ghost bh-btn--icon bh-btn--sm" data-close aria-label="Close">{% icon 'x' 20 %}</button>
+    </div>
+    <form id="spend-form" novalidate autocomplete="off">
+      <div class="stack-sm">
+        <label class="amount-box" for="f-amount">
+          <span class="amount-box__cur">{{ currency }}</span>
+          <input id="f-amount" name="amount" inputmode="decimal" placeholder="0.00" enterkeyhint="next" aria-label="Amount">
+          <span class="amount-box__calc num" id="f-calc"></span>
+        </label>
+        <span class="field__error" data-err="amount"></span>
+      </div>
+
+      <div class="suggest">
+        <div class="bh-field__box">
+          <input id="f-title" name="title" class="bh-field__input" placeholder="What was it? e.g. Chicken rice" enterkeyhint="done" aria-label="Title" maxlength="200" aria-autocomplete="list" aria-controls="f-suggest">
+        </div>
+        <ul class="suggest__list" id="f-suggest" role="listbox" hidden></ul>
+      </div>
+
+      <div class="stack-sm">
+        <div class="chips" role="group" aria-label="Category">
+          {% for c in cats %}
+            <button type="button" class="bh-chip" data-cat="{{ c.id }}" aria-pressed="false">
+              <span class="chip-check">{% icon 'check' 16 %}</span>
+              {% if c.is_fund %}<img class="bh-trace" src="{% static 'img/burrow/traces/acorn.svg' %}" alt="" width="16" height="16">{% endif %}
+              {{ c.name }}
+            </button>
+          {% empty %}
+            <span class="small muted">No categories yet. <a href="{% url 'ledger:category_new' %}">Add a category</a> first.</span>
+          {% endfor %}
+        </div>
+        <input type="hidden" name="category" id="f-category">
+        <span class="field__error" data-err="category"></span>
+      </div>
+
+      <button type="button" class="details-toggle" aria-expanded="false" aria-controls="f-details">
+        <span id="f-summary">Today</span>{% icon 'chevron-down' 18 %}
+      </button>
+      <div class="details" id="f-details" hidden>
+        <div class="field">
+          <label for="f-date">Date</label>
+          <div class="row row--wrap">
+            <input type="date" class="input grow" style="min-width:150px" id="f-date" name="date">
+            <button type="button" class="bh-chip" data-day="0">Today</button>
+            <button type="button" class="bh-chip" data-day="1">Yesterday</button>
+          </div>
+          <span class="field__error" data-err="date"></span>
+        </div>
+        <div class="field">
+          <span class="field__label" id="f-months-label">Counts toward</span>
+          <div class="seg" id="f-months" role="radiogroup" aria-labelledby="f-months-label"></div>
+          <span class="field__hint">For a bill that arrives after the month it's for.</span>
+        </div>
+        <div class="field">
+          <label for="f-note">Note</label>
+          <textarea class="textarea" id="f-note" name="note" rows="2" placeholder="Optional"></textarea>
+        </div>
+        <label class="check"><input type="checkbox" id="f-refund" name="refund"> Money back (a refund, or money into a fund)</label>
+        <div class="field" id="f-repeat-row">
+          <label for="f-repeat">Repeat</label>
+          <select class="select" id="f-repeat" name="repeat">
+            <option value="">Doesn't repeat</option>
+            <option value="week">Every week</option>
+            <option value="month">Every month</option>
+            <option value="year">Every year</option>
+          </select>
+        </div>
+        <p class="note" id="f-rule" hidden>
+          Added by the recurring spend <a id="f-rule-link" data-base="{% url 'ledger:recurring' %}" href="#"></a>. Changes here only affect this entry; edit the recurring spend to change future ones.
+        </p>
+      </div>
+
+      <p class="form-error" id="f-error" role="alert"></p>
+      <div class="sheet__foot">
+        <button type="button" class="bh-btn bh-btn--ghost bh-btn--danger" id="f-delete" hidden>{% icon 'trash' 20 %} Delete</button>
+        <button type="submit" class="bh-btn bh-btn--primary" id="f-submit">Add spend</button>
+      </div>
+    </form>
+  </section>
+</div>
+{{ entry_data|json_script:"ledger-entry" }}

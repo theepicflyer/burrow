@@ -43,69 +43,69 @@ class TransactionSimpleAddViewTests(TestCase):
 
     def test_get_returns_form_with_default_values(self):
         """Test GET request returns 200 and form with defaults"""
-        response = self.client.get("/add/")
+        response = self.client.get("/legacy/add/")
         self.assertEqual(response.status_code, 200)
         self.assertIn("form", response.context)
 
     def test_get_with_type_param(self):
         """Test type param sets form initial value"""
-        response = self.client.get("/add/?type=EX")
+        response = self.client.get("/legacy/add/?type=EX")
         self.assertEqual(response.status_code, 200)
         form = response.context["form"]
         self.assertEqual(form.initial.get("type"), Transaction.Type.EXPENSE)
 
     def test_get_with_account_param(self):
         """Test account param sets form initial value"""
-        response = self.client.get(f"/add/?account={self.account.id}")
+        response = self.client.get(f"/legacy/add/?account={self.account.id}")
         self.assertEqual(response.status_code, 200)
         form = response.context["form"]
         self.assertEqual(form.initial.get("account"), self.account.id)
 
     def test_get_with_is_paid_param_true(self):
         """Test is_paid param with true value"""
-        response = self.client.get("/add/?is_paid=true")
+        response = self.client.get("/legacy/add/?is_paid=true")
         self.assertEqual(response.status_code, 200)
         form = response.context["form"]
         self.assertTrue(form.initial.get("is_paid"))
 
     def test_get_with_is_paid_param_false(self):
         """Test is_paid param with false value"""
-        response = self.client.get("/add/?is_paid=false")
+        response = self.client.get("/legacy/add/?is_paid=false")
         self.assertEqual(response.status_code, 200)
         form = response.context["form"]
         self.assertFalse(form.initial.get("is_paid"))
 
     def test_get_with_amount_param(self):
         """Test amount param sets form initial value"""
-        response = self.client.get("/add/?amount=150.50")
+        response = self.client.get("/legacy/add/?amount=150.50")
         self.assertEqual(response.status_code, 200)
         form = response.context["form"]
         self.assertEqual(form.initial.get("amount"), "150.50")
 
     def test_get_with_description_param(self):
         """Test description param sets form initial value"""
-        response = self.client.get("/add/?description=Test%20Transaction")
+        response = self.client.get("/legacy/add/?description=Test%20Transaction")
         self.assertEqual(response.status_code, 200)
         form = response.context["form"]
         self.assertEqual(form.initial.get("description"), "Test Transaction")
 
     def test_get_with_notes_param(self):
         """Test notes param sets form initial value"""
-        response = self.client.get("/add/?notes=Some%20notes")
+        response = self.client.get("/legacy/add/?notes=Some%20notes")
         self.assertEqual(response.status_code, 200)
         form = response.context["form"]
         self.assertEqual(form.initial.get("notes"), "Some notes")
 
     def test_get_with_category_param(self):
         """Test category param sets form initial value"""
-        response = self.client.get(f"/add/?category={self.category.id}")
+        response = self.client.get(f"/legacy/add/?category={self.category.id}")
         self.assertEqual(response.status_code, 200)
         form = response.context["form"]
         self.assertEqual(form.initial.get("category"), self.category.id)
 
     def test_get_with_tags_param(self):
         """Test tags param as comma-separated names"""
-        response = self.client.get("/add/?tags=TestTag,AnotherTag")
+        response = self.client.get("/legacy/add/?tags=TestTag,AnotherTag")
         self.assertEqual(response.status_code, 200)
         form = response.context["form"]
         self.assertEqual(form.initial.get("tags"), ["TestTag", "AnotherTag"])
@@ -113,7 +113,7 @@ class TransactionSimpleAddViewTests(TestCase):
     def test_get_with_all_params(self):
         """Test all params together work correctly"""
         url = (
-            f"/add/?type=EX&account={self.account.id}&is_paid=true"
+            f"/legacy/add/?type=EX&account={self.account.id}&is_paid=true"
             f"&amount=200.00&description=Full%20Test&notes=Test%20notes"
             f"&category={self.category.id}&tags=TestTag"
         )
@@ -139,7 +139,7 @@ class TransactionSimpleAddViewTests(TestCase):
             "amount": "100.00",
             "description": "Test Transaction",
         }
-        response = self.client.post("/add/", data)
+        response = self.client.post("/legacy/add/", data)
         self.assertEqual(response.status_code, 200)
         self.assertTrue(
             Transaction.objects.filter(description="Test Transaction").exists()
@@ -147,28 +147,28 @@ class TransactionSimpleAddViewTests(TestCase):
 
     def test_get_with_date_param(self):
         """Test date param overrides expected date"""
-        response = self.client.get("/add/?date=2025-06-15")
+        response = self.client.get("/legacy/add/?date=2025-06-15")
         self.assertEqual(response.status_code, 200)
         form = response.context["form"]
         self.assertEqual(form.initial.get("date"), date(2025, 6, 15))
 
     def test_get_with_reference_date_param(self):
         """Test reference_date param sets form initial value"""
-        response = self.client.get("/add/?reference_date=2025-07-01")
+        response = self.client.get("/legacy/add/?reference_date=2025-07-01")
         self.assertEqual(response.status_code, 200)
         form = response.context["form"]
         self.assertEqual(form.initial.get("reference_date"), date(2025, 7, 1))
 
     def test_get_with_account_name_param(self):
         """Test account param by name (case-insensitive)"""
-        response = self.client.get("/add/?account=Test%20Account")
+        response = self.client.get("/legacy/add/?account=Test%20Account")
         self.assertEqual(response.status_code, 200)
         form = response.context["form"]
         self.assertEqual(form.initial.get("account"), self.account.id)
 
     def test_get_with_category_name_param(self):
         """Test category param by name (case-insensitive)"""
-        response = self.client.get("/add/?category=Test%20Category")
+        response = self.client.get("/legacy/add/?category=Test%20Category")
         self.assertEqual(response.status_code, 200)
         form = response.context["form"]
         self.assertEqual(form.initial.get("category"), self.category.id)

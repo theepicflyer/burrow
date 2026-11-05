@@ -1,0 +1,17 @@
+{% extends "ledger/base.html" %}
+{% load ledger %}
+{% block title %}{% if cat %}{{ cat.name }}{% else %}New category{% endif %}{% endblock %}
+{% block content %}
+<c-burrow.habitat kind="river" mood="busy">
+  <span class="bh-habitat__eyebrow"><a href="{% url 'ledger:settings' %}" style="color:inherit">Settings</a></span>
+  <h1 class="page-title">{% if cat %}Edit {{ cat.name }}{% else %}New category{% endif %}</h1>
+</c-burrow.habitat>
+<form method="post" action="{% if cat %}{% url 'ledger:category_update' cat.id %}{% else %}{% url 'ledger:category_new' %}{% endif %}" class="bh-card form-grid">
+  {% csrf_token %}
+  {% include "ledger/partials/category_fields.html" %}
+  <div class="actions actions--end">
+    <a class="bh-btn bh-btn--ghost" href="{% url 'ledger:settings' %}">Cancel</a>
+    <button class="bh-btn bh-btn--primary" type="submit">{% if cat %}Save category{% else %}Add category{% endif %}</button>
+  </div>
+</form>
+{% endblock %}

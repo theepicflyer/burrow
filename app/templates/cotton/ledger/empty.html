@@ -1,0 +1,7 @@
+<c-vars who="gali" mood="sleepy" title="" size="56" />
+{# Burrow EmptyState for inside a card. Small animal (56px) so it can share a screen with the Habitat. Pass who="" for none. #}
+<div class="bh-empty" style="padding:var(--space-4) var(--space-2)">
+  {% if who %}<c-burrow.mascot who="{{ who }}" mood="{{ mood }}" size="{{ size }}" />{% endif %}
+  <h3 class="bh-empty__title">{{ title }}</h3>
+  <div class="bh-empty__body">{{ slot }}</div>
+</div>

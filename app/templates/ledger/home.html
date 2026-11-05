@@ -1,0 +1,130 @@
+{% extends "ledger/base.html" %}
+{% load ledger static %}
+{% block title %}{{ month|date:"F Y" }}{% endblock %}
+{% block page_class %}page--wide{% endblock %}
+{% block content %}
+<c-burrow.habitat kind="oak" mood="{% if status.over %}worried{% elif status.budgets and not status.total_spent %}sleepy{% else %}happy{% endif %}">
+  <span class="bh-habitat__eyebrow">
+    <span class="month-nav">
+      <a href="?month={{ prev_month|date:'Y-m' }}" aria-label="Previous month">{% icon 'chevron-left' 16 %}</a>
+    </span>
+    {{ month|date:"F Y" }}
+    <span class="month-nav">
+      {% if is_current %}<span aria-hidden="true">{% icon 'chevron-right' 16 %}</span>{% else %}<a href="?month={{ next_month|date:'Y-m' }}" aria-label="Next month">{% icon 'chevron-right' 16 %}</a>{% endif %}
+    </span>
+  </span>
+  {% if not status.budgets %}
+    <h1 class="page-title">Set up budgets</h1>
+  {% elif status.over %}
+    <h1 class="page-title">{% money status.left|neg %} over</h1>
+  {% else %}
+    <h1 class="page-title">{% money status.left %} left</h1>
+  {% endif %}
+  {% if status.days_left is not None %}
+    <p class="bh-habitat__sub">{% if status.days_left == 0 %}Last day of the month{% elif status.days_left == 1 %}1 day to go{% else %}{{ status.days_left }} days to go{% endif %}</p>
+  {% elif not is_current %}
+    <p class="bh-habitat__sub"><a href="{% url 'ledger:home' %}">Back to this month</a></p>
+  {% endif %}
+</c-burrow.habitat>
+
+{% if not status.budgets and not status.funds %}
+  <div class="bh-card">
+    <c-ledger.empty who="kayu" mood="sleepy" title="No categories yet">
+      Add the categories you spend in, each with a monthly budget, and any sinking funds.
+      <div class="actions" style="justify-content:center;margin-top:12px">
+        <a class="bh-btn bh-btn--primary" href="{% url 'ledger:category_new' %}">{% icon 'plus' 20 %} Add a category</a>
+      </div>
+    </c-ledger.empty>
+  </div>
+{% else %}
+<div class="cols">
+  <div class="stack">
+    {% if status.budgets %}
+    <div class="bh-card">
+      <div class="center">
+        <c-burrow.wreath :leaves="status.leaves">
+          <span class="ring-big">{% money status.total_spent %}</span>
+          <span class="ring-small">spent of {% money status.total_budget %}</span>
+        </c-burrow.wreath>
+      </div>
+      {% if status.elapsed is not None %}
+        <p class="pace">{% if status.over %}Over budget this month.{% elif status.ahead_of_pace %}Spending is ahead of the month so far.{% else %}On pace for the month.{% endif %}</p>
+      {% endif %}
+    </div>
+
+    <section class="bh-card" aria-labelledby="budgets-title">
+      <div class="bh-card__head">
+        <h2 class="bh-card__title section-title" id="budgets-title">Budgets</h2>
+        <a class="card-link" href="{% url 'ledger:trends' %}">Trends</a>
+      </div>
+      <div class="meters">
+        {% for b in status.budgets %}
+          <a class="meter-link" href="{% url 'ledger:spends' %}?category={{ b.category.id }}&month={{ month|date:'Y-m' }}">
+            {% widthratio b.budget b.spent 100 as limit %}
+            <c-burrow.meter label="{{ b.category.name }}" :percent="b.percent" :over="b.over" :limit="limit"
+              value_text="{% money b.spent %} / {% money b.budget %}{% if b.over %} · over{% endif %}" />
+          </a>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+  </div>
+
+  <div class="stack">
+    {% if status.funds %}
+    <section class="bh-card" aria-labelledby="funds-title">
+      <div class="bh-card__head">
+        <h2 class="bh-card__title section-title" id="funds-title">Funds</h2>
+      </div>
+      <div class="stashes">
+        {% for f in status.funds %}
+          <a class="stash-link" href="{% url 'ledger:category' f.category.id %}">
+            <c-burrow.stash name="{{ f.category.name }}" value_text="{% money f.balance %}" :acorns="f.acorns" class="{% if f.balance < 0 %}is-negative{% endif %}"
+              target_text="{% if f.category.target %}of {% money f.category.target %}{% else %}+{% money f.topup %} a month{% endif %}" />
+          </a>
+        {% endfor %}
+      </div>
+      {% if status.fund_spent %}<p class="small muted" style="margin:12px 0 0">{% money status.fund_spent %} spent from funds in {{ month|date:"F" }}.</p>{% endif %}
+    </section>
+    {% endif %}
+
+    {% if upcoming %}
+    <section class="bh-card" aria-labelledby="upcoming-title">
+      <div class="bh-card__head">
+        <h2 class="bh-card__title section-title" id="upcoming-title">Coming up</h2>
+        <a class="card-link" href="{% url 'ledger:recurring' %}">Recurring</a>
+      </div>
+      <div class="list list--flat">
+        {% for d, r in upcoming %}
+          <a class="spend" href="{% url 'ledger:recurring_edit' r.id %}">
+            <span class="tile tile--plan" aria-hidden="true">{{ d|date:"j" }}</span>
+            <span class="spend__text">
+              <span class="spend__title">{{ r.title }}</span>
+              <span class="spend__sub">{{ d|date:"D j M" }} · {{ r.category.name }}</span>
+            </span>
+            <span class="spend__amount">{% money r.amount signed=True %}</span>
+          </a>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    <section class="bh-card" aria-labelledby="recent-title">
+      <div class="bh-card__head">
+        <h2 class="bh-card__title section-title" id="recent-title">Latest in {{ month|date:"F" }}</h2>
+        <a class="card-link" href="{% url 'ledger:spends' %}?month={{ month|date:'Y-m' }}">See all</a>
+      </div>
+      {% if recent %}
+        <div class="list list--flat">
+          {% for t in recent %}{% include "ledger/partials/spend_row.html" with show_date=True %}{% endfor %}
+        </div>
+      {% else %}
+        <c-ledger.empty who="kacang" mood="sleepy" title="Nothing spent yet">
+          Spends you add for {{ month|date:"F" }} show up here.
+        </c-ledger.empty>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -112,7 +112,7 @@ class MonthlySummaryFilterBehaviorTests(TestCase):
     def test_monthly_summary_no_filter_returns_200(self):
         """Test that monthly_summary returns 200 without filters"""
         response = self.client.get(
-            "/monthly/12/2025/summary/",
+            "/legacy/monthly/12/2025/summary/",
             HTTP_HX_REQUEST="true",
         )
         self.assertEqual(response.status_code, 200)
@@ -120,7 +120,7 @@ class MonthlySummaryFilterBehaviorTests(TestCase):
     def test_monthly_summary_no_filter_includes_all_transactions(self):
         """Without filters, summary should include all transactions"""
         response = self.client.get(
-            "/monthly/12/2025/summary/",
+            "/legacy/monthly/12/2025/summary/",
             HTTP_HX_REQUEST="true",
         )
         context = response.context
@@ -146,7 +146,7 @@ class MonthlySummaryFilterBehaviorTests(TestCase):
     def test_monthly_summary_type_filter_only_income(self):
         """With type=IN filter, summary should only include income"""
         response = self.client.get(
-            "/monthly/12/2025/summary/?type=IN",
+            "/legacy/monthly/12/2025/summary/?type=IN",
             HTTP_HX_REQUEST="true",
         )
         context = response.context
@@ -172,7 +172,7 @@ class MonthlySummaryFilterBehaviorTests(TestCase):
     def test_monthly_summary_type_filter_only_expenses(self):
         """With type=EX filter, summary should only include expenses"""
         response = self.client.get(
-            "/monthly/12/2025/summary/?type=EX",
+            "/legacy/monthly/12/2025/summary/?type=EX",
             HTTP_HX_REQUEST="true",
         )
         context = response.context
@@ -198,7 +198,7 @@ class MonthlySummaryFilterBehaviorTests(TestCase):
     def test_monthly_summary_is_paid_filter_only_paid(self):
         """With is_paid=1 filter, summary should only include paid transactions"""
         response = self.client.get(
-            "/monthly/12/2025/summary/?is_paid=1",
+            "/legacy/monthly/12/2025/summary/?is_paid=1",
             HTTP_HX_REQUEST="true",
         )
         context = response.context
@@ -224,7 +224,7 @@ class MonthlySummaryFilterBehaviorTests(TestCase):
     def test_monthly_summary_is_paid_filter_only_unpaid(self):
         """With is_paid=0 filter, summary should only include unpaid transactions"""
         response = self.client.get(
-            "/monthly/12/2025/summary/?is_paid=0",
+            "/legacy/monthly/12/2025/summary/?is_paid=0",
             HTTP_HX_REQUEST="true",
         )
         context = response.context
@@ -250,7 +250,7 @@ class MonthlySummaryFilterBehaviorTests(TestCase):
     def test_monthly_summary_description_filter(self):
         """With description filter, summary should only include matching transactions"""
         response = self.client.get(
-            "/monthly/12/2025/summary/?description=Income",
+            "/legacy/monthly/12/2025/summary/?description=Income",
             HTTP_HX_REQUEST="true",
         )
         context = response.context
@@ -271,7 +271,7 @@ class MonthlySummaryFilterBehaviorTests(TestCase):
         """With amount filter, summary should only include transactions in range"""
         # Filter to only get transactions between 100 and 250 (should get 200 and 150)
         response = self.client.get(
-            "/monthly/12/2025/summary/?from_amount=100&to_amount=250",
+            "/legacy/monthly/12/2025/summary/?from_amount=100&to_amount=250",
             HTTP_HX_REQUEST="true",
         )
         context = response.context
@@ -299,7 +299,7 @@ class MonthlySummaryFilterBehaviorTests(TestCase):
     def test_monthly_account_summary_no_filter_returns_200(self):
         """Test that monthly_account_summary returns 200 without filters"""
         response = self.client.get(
-            "/monthly/12/2025/summary/accounts/",
+            "/legacy/monthly/12/2025/summary/accounts/",
             HTTP_HX_REQUEST="true",
         )
         self.assertEqual(response.status_code, 200)
@@ -307,7 +307,7 @@ class MonthlySummaryFilterBehaviorTests(TestCase):
     def test_monthly_account_summary_with_filter_returns_200(self):
         """Test that monthly_account_summary returns 200 with filter"""
         response = self.client.get(
-            "/monthly/12/2025/summary/accounts/?type=IN",
+            "/legacy/monthly/12/2025/summary/accounts/?type=IN",
             HTTP_HX_REQUEST="true",
         )
         self.assertEqual(response.status_code, 200)
@@ -317,7 +317,7 @@ class MonthlySummaryFilterBehaviorTests(TestCase):
     def test_monthly_currency_summary_no_filter_returns_200(self):
         """Test that monthly_currency_summary returns 200 without filters"""
         response = self.client.get(
-            "/monthly/12/2025/summary/currencies/",
+            "/legacy/monthly/12/2025/summary/currencies/",
             HTTP_HX_REQUEST="true",
         )
         self.assertEqual(response.status_code, 200)
@@ -325,7 +325,7 @@ class MonthlySummaryFilterBehaviorTests(TestCase):
     def test_monthly_currency_summary_with_filter_returns_200(self):
         """Test that monthly_currency_summary returns 200 with filter"""
         response = self.client.get(
-            "/monthly/12/2025/summary/currencies/?type=EX",
+            "/legacy/monthly/12/2025/summary/currencies/?type=EX",
             HTTP_HX_REQUEST="true",
         )
         self.assertEqual(response.status_code, 200)

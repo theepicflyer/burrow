@@ -1,0 +1,154 @@
+{% extends "ledger/base.html" %}
+{% load ledger %}
+{% block title %}Trends{% endblock %}
+{% block page_class %}page--wide{% endblock %}
+{% block content %}
+<c-burrow.habitat kind="oak" mood="{% if a.flagged %}worried{% else %}happy{% endif %}">
+  <span class="bh-habitat__eyebrow">
+    <span class="month-nav"><a href="?months={{ span }}&end={{ prev_end|date:'Y-m' }}" aria-label="Earlier">{% icon 'chevron-left' 16 %}</a></span>
+    {{ a.months.0|date:"M Y" }} to {{ end|date:"M Y" }}
+    <span class="month-nav">{% if next_end %}<a href="?months={{ span }}&end={{ next_end|date:'Y-m' }}" aria-label="Later">{% icon 'chevron-right' 16 %}</a>{% else %}<span aria-hidden="true">{% icon 'chevron-right' 16 %}</span>{% endif %}</span>
+  </span>
+  <h1 class="page-title">Trends</h1>
+  <p class="bh-habitat__sub">
+    {% with n=a.complete_totals|length %}
+    {% if n %}Over budget in {{ a.months_over }} of {{ n }} month{{ n|pluralize }}{% else %}No complete months yet{% endif %}
+    {% endwith %}
+  </p>
+</c-burrow.habitat>
+
+<div class="actions" style="margin-bottom:16px">
+  <span class="small muted">Show</span>
+  <a class="bh-chip {% if span == 6 %}is-selected{% endif %}" href="?months=6&end={{ end|date:'Y-m' }}">6 months</a>
+  <a class="bh-chip {% if span == 12 %}is-selected{% endif %}" href="?months=12&end={{ end|date:'Y-m' }}">12 months</a>
+  <a class="bh-chip {% if span == 24 %}is-selected{% endif %}" href="?months=24&end={{ end|date:'Y-m' }}">24 months</a>
+</div>
+
+{% if not a.categories and not a.funds %}
+  <div class="bh-card"><c-ledger.empty who="" title="Nothing to compare yet">Trends appear once you have budgets and a month of spends.</c-ledger.empty></div>
+{% else %}
+<div class="cols">
+  <section class="bh-card span-2" aria-labelledby="kpi-title">
+    <h2 class="sr-only" id="kpi-title">Summary</h2>
+    <div class="kpis">
+      <div class="kpi">
+        <span class="kpi__label">Months over budget</span>
+        <span class="kpi__value {% if a.months_over %}over-text{% endif %}">{{ a.months_over }} of {{ a.complete_totals|length }}</span>
+        <span class="kpi__sub">complete months</span>
+      </div>
+      <div class="kpi">
+        <span class="kpi__label">Average spent</span>
+        <span class="kpi__value">{% money a.avg_spent %}</span>
+        <span class="kpi__sub">a month, budgets only</span>
+      </div>
+      <div class="kpi">
+        <span class="kpi__label">Average budget</span>
+        <span class="kpi__value">{% money a.avg_budget %}</span>
+        <span class="kpi__sub">{% if a.avg_spent > a.avg_budget %}<span class="over-text">{% money a.avg_spent|sub:a.avg_budget %} over</span> on average{% else %}{% money a.avg_budget|sub:a.avg_spent %} under on average{% endif %}</span>
+      </div>
+      <div class="kpi">
+        <span class="kpi__label">Over most months</span>
+        <span class="kpi__value {% if a.flagged %}over-text{% endif %}">{{ a.flagged|length }}</span>
+        <span class="kpi__sub">categor{{ a.flagged|length|pluralize:"y,ies" }}</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="bh-card span-2" aria-labelledby="trend-title">
+    <div class="bh-card__head">
+      <h2 class="bh-card__title section-title" id="trend-title">Spent against budget</h2>
+      <span class="legend"><span class="l-spent">Spent</span><span class="l-spent-over">Spent, over</span><span class="l-budget">Budget</span></span>
+    </div>
+    <div class="chart-box"><canvas data-chart="budget" data-src="trend-data" aria-label="Monthly spending against the total budget" role="img"></canvas></div>
+    {% if a.current %}<p class="small muted" style="margin:8px 0 0">{{ a.current|date:"F" }} is still running; it's shown faded and left out of the counts.</p>{% endif %}
+    {{ chart|json_script:"trend-data" }}
+  </section>
+
+  {% if a.flagged %}
+  <section class="bh-card" aria-labelledby="flag-title">
+    <div class="bh-card__head"><h2 class="bh-card__title section-title" id="flag-title">Over most months</h2></div>
+    <div class="flags">
+      {% for t in a.flagged %}
+        <div class="flag">
+          <a class="flag__title" href="{% url 'ledger:category' t.category.id %}">{{ t.category.name }}</a>
+          <span class="small">Over in {{ t.months_over }} of {{ t.months_counted }} months. Spends {% money t.avg_spent %} a month on average against a {% money t.avg_budget %} budget{% if t.avg_percent %} ({{ t.avg_percent }}%){% endif %}.</span>
+          <span class="small muted">Spend less here, or set the budget nearer {% money t.avg_spent %} so it reflects reality.</span>
+        </div>
+      {% endfor %}
+    </div>
+    <div class="actions" style="margin-top:16px"><a class="bh-btn bh-btn--secondary bh-btn--sm" href="{% url 'ledger:budgets_edit' %}">{% icon 'pencil' 18 %} Edit budgets</a></div>
+  </section>
+  {% endif %}
+
+  <section class="bh-card {% if not a.flagged %}span-2{% endif %}" aria-labelledby="avg-title">
+    <div class="bh-card__head"><h2 class="bh-card__title section-title" id="avg-title">Average month by category</h2></div>
+    <div class="meters">
+      {% for t in a.categories %}
+        <a class="meter-link" href="{% url 'ledger:category' t.category.id %}">
+          {% widthratio t.avg_budget t.avg_spent 100 as limit %}
+          <c-burrow.meter label="{{ t.category.name }}" :percent="t.avg_pct" :over="t.avg_over" :limit="limit"
+            value_text="{% money t.avg_spent %} / {% money t.avg_budget %}{% if t.months_over %} · over {{ t.months_over }}×{% endif %}" />
+        </a>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="bh-card span-2" aria-labelledby="heat-title">
+    <div class="bh-card__head">
+      <h2 class="bh-card__title section-title" id="heat-title">Month by month</h2>
+      <span class="legend"><span class="l-under">Under</span><span class="l-near">Within 10%</span><span class="l-over">Over</span><span class="l-partial">Running</span></span>
+    </div>
+    <p class="small muted" style="margin:0 0 8px">Share of each month's budget spent. Tap a cell to see its spends.</p>
+    <div class="heat-wrap">
+      <table class="heat">
+        <thead>
+          <tr>
+            <th class="heat__cat" scope="col">Category</th>
+            {% for m in a.months %}<th scope="col">{{ m|date:"M" }}{% if m.month == 1 or forloop.first %}<br>{{ m|date:"y" }}{% endif %}</th>{% endfor %}
+            <th scope="col">Over</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in a.categories %}
+            <tr>
+              <td class="heat__cat"><a href="{% url 'ledger:category' t.category.id %}">{{ t.category.name }}</a></td>
+              {% for c in t.cells %}
+                <td class="t-{{ c.tone }}{% if c.partial %} is-partial{% endif %}" title="{{ c.month|date:'F Y' }}: {% money c.spent %} of {% money c.budget %}">
+                  <a href="{% url 'ledger:spends' %}?category={{ t.category.id }}&month={{ c.month|date:'Y-m' }}">{% if c.percent is not None %}{{ c.percent }}%{% elif c.spent %}{% money c.spent %}{% else %}–{% endif %}</a>
+                </td>
+              {% endfor %}
+              <td class="heat__sum {% if t.consistently_over %}over-text{% endif %}">{{ t.months_over }}/{{ t.months_counted }}</td>
+            </tr>
+          {% endfor %}
+          <tr>
+            <td class="heat__cat">All budgets</td>
+            {% for c in a.totals %}
+              <td class="t-{{ c.tone }}{% if c.partial %} is-partial{% endif %}" title="{{ c.month|date:'F Y' }}: {% money c.spent %} of {% money c.budget %}">{% if c.percent is not None %}{{ c.percent }}%{% else %}–{% endif %}</td>
+            {% endfor %}
+            <td class="heat__sum">{{ a.months_over }}/{{ a.complete_totals|length }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {% if a.funds %}
+  <section class="bh-card span-2" aria-labelledby="funds-title">
+    <div class="bh-card__head"><h2 class="bh-card__title section-title" id="funds-title">Funds</h2></div>
+    <div class="chart-box chart-box--sm"><canvas data-chart="funds" data-src="trend-data" aria-label="Fund balances by month" role="img"></canvas></div>
+    <div class="list list--flat" style="margin-top:12px">
+      {% for f in a.funds %}
+        <a class="setting" href="{% url 'ledger:category' f.category.id %}">
+          <span class="grow">
+            <span class="setting__title">{{ f.category.name }}</span><br>
+            <span class="small muted">+{% money f.topup_now %} a month · spends {% money f.avg_spent %} a month on average{% if f.draining %} · <span class="warn-text">more than goes in</span>{% endif %}</span>
+          </span>
+          <span class="setting__value {% if f.balance_now < 0 %}over-text{% endif %}">{% money f.balance_now %}</span>
+        </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

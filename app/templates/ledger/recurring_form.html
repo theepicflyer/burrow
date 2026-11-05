@@ -1,0 +1,78 @@
+{% extends "ledger/base.html" %}
+{% load ledger %}
+{% block title %}{% if rule %}{{ rule.title }}{% else %}New recurring spend{% endif %}{% endblock %}
+{% block content %}
+<c-burrow.habitat kind="river" mood="busy">
+  <span class="bh-habitat__eyebrow"><a href="{% url 'ledger:recurring' %}" style="color:inherit">Recurring</a></span>
+  <h1 class="page-title">{% if rule %}{{ rule.title }}{% else %}New recurring spend{% endif %}</h1>
+  {% if rule %}<p class="bh-habitat__sub">{% if rule.paused %}Paused{% elif rule.next_date %}Next on {{ rule.next_date|date:"j F" }}{% else %}Ended{% endif %}</p>{% endif %}
+</c-burrow.habitat>
+<form method="post" class="bh-card form-grid">
+  {% csrf_token %}
+  {% if form.non_field_errors %}<p class="form-error">{{ form.non_field_errors|join:" " }}</p>{% endif %}
+  <div class="form-grid form-grid--2">
+    <div class="field span-2 {% if form.title.errors %}has-error{% endif %}">
+      <label for="id_title">Title</label>
+      <input class="input" id="id_title" name="title" value="{{ form.title.value|default:'' }}" maxlength="200" required placeholder="e.g. Rent">
+      {% for e in form.title.errors %}<span class="field__error">{{ e }}</span>{% endfor %}
+    </div>
+    <div class="field {% if form.amount.errors %}has-error{% endif %}">
+      <label for="id_amount">Amount</label>
+      <span class="input input--affix">{% currency %}<input id="id_amount" name="amount" inputmode="decimal" value="{{ form.amount.value|default_if_none:'' }}" required></span>
+      {% for e in form.amount.errors %}<span class="field__error">{{ e }}</span>{% endfor %}
+    </div>
+    <div class="field {% if form.category.errors %}has-error{% endif %}">
+      <label for="id_category">Category</label>
+      <select class="select" id="id_category" name="category" required>
+        <option value="">Pick a category</option>
+        {% for c in form.fields.category.queryset %}<option value="{{ c.id }}" {% if form.category.value|stringformat:'s' == c.id|stringformat:'s' %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+      </select>
+      {% for e in form.category.errors %}<span class="field__error">{{ e }}</span>{% endfor %}
+    </div>
+    <div class="field">
+      <label for="id_every">Repeats every</label>
+      <div class="row">
+        <input class="input" style="width:80px" type="number" min="1" max="52" id="id_every" name="every" value="{{ form.every.value|default:1 }}">
+        <select class="select grow" name="unit" aria-label="Unit">
+          {% for v, l in form.fields.unit.choices %}<option value="{{ v }}" {% if form.unit.value == v %}selected{% endif %}>{{ l|lower }}{% if form.every.value|default:1|stringformat:'s' != '1' %}s{% endif %}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label for="id_month_offset">Counts toward</label>
+      <select class="select" id="id_month_offset" name="month_offset">
+        <option value="0" {% if form.month_offset.value|stringformat:'s' != '-1' %}selected{% endif %}>The month of its date</option>
+        <option value="-1" {% if form.month_offset.value|stringformat:'s' == '-1' %}selected{% endif %}>The month before (a bill for last month)</option>
+      </select>
+    </div>
+    <div class="field {% if form.start_date.errors %}has-error{% endif %}">
+      <label for="id_start_date">First date</label>
+      <input class="input" type="date" id="id_start_date" name="start_date" value="{{ form.start_date.value|date:'Y-m-d'|default:form.start_date.value }}" required>
+      {% if not rule %}<span class="field__hint">A first date in the past adds the entries up to today.</span>{% endif %}
+      {% for e in form.start_date.errors %}<span class="field__error">{{ e }}</span>{% endfor %}
+    </div>
+    <div class="field {% if form.end_date.errors %}has-error{% endif %}">
+      <label for="id_end_date">Last date</label>
+      <input class="input" type="date" id="id_end_date" name="end_date" value="{{ form.end_date.value|date:'Y-m-d'|default:form.end_date.value|default:'' }}">
+      <span class="field__hint">Optional.</span>
+      {% for e in form.end_date.errors %}<span class="field__error">{{ e }}</span>{% endfor %}
+    </div>
+    <div class="field span-2">
+      <label for="id_note">Note</label>
+      <textarea class="textarea" id="id_note" name="note" rows="2">{{ form.note.value|default:'' }}</textarea>
+    </div>
+  </div>
+  {% if rule %}<p class="note">Saving changes every entry still to come. Entries already added stay as they are; edit those on the Spends page.</p>{% endif %}
+  <div class="actions actions--end">
+    <a class="bh-btn bh-btn--ghost" href="{% url 'ledger:recurring' %}">Cancel</a>
+    <button class="bh-btn bh-btn--primary" type="submit">{% if rule %}Save changes{% else %}Add recurring spend{% endif %}</button>
+  </div>
+</form>
+{% if rule %}
+<div class="actions" style="margin-top:16px">
+  <form method="post" action="{% url 'ledger:recurring_toggle' rule.id %}">{% csrf_token %}<button class="bh-btn bh-btn--secondary bh-btn--sm" type="submit">{% if rule.paused %}{% icon 'play' 18 %} Resume{% else %}{% icon 'pause' 18 %} Pause{% endif %}</button></form>
+  <form method="post" action="{% url 'ledger:recurring_delete' rule.id %}">{% csrf_token %}<button class="bh-btn bh-btn--ghost bh-btn--sm bh-btn--danger" type="submit">{% icon 'trash' 18 %} Delete</button></form>
+  <a class="bh-btn bh-btn--ghost bh-btn--sm" href="{% url 'ledger:spends' %}?q={{ rule.title|urlencode }}">Past entries</a>
+</div>
+{% endif %}
+{% endblock %}
