@@ -9,6 +9,48 @@ template, then trim what doesn't apply.
 
 ---
 
+## 2026-11 — The ledger rebuild (`import_wygiwyh`)
+
+End-state: the app at `/` is the new ledger (`apps.ledger`), with its own
+tables (`ledger_category`, `ledger_monthlyamount`, `ledger_transaction`,
+`ledger_recurring`, `ledger_ledgersettings`). The WYGIWYH screens move to
+`/legacy/` and their tables are left untouched. The new tables start empty, so
+the old data has to be imported once. Nothing is deleted.
+
+### Deploy steps
+
+1. Deploy the release as usual (migrations create the ledger tables on start).
+   Until step 3 the app shows an empty ledger; don't add spends in the new UI
+   yet (the import refuses a ledger that already has data).
+2. Preview the import. It runs in a transaction and rolls back:
+
+   ```sh
+   docker compose exec web python manage.py import_wygiwyh --dry-run
+   ```
+
+   Read the report. Check the "Fund balances" section: each fund should say
+   `ok`. A fund marked `DIFFERS` comes with a note explaining why (for example
+   a monthly default that the old app had not allocated yet this month).
+   Check the skipped counts (unpaid transactions, uncategorized income,
+   soft-deleted rows, auto-allocation legs) look plausible.
+3. Import for real:
+
+   ```sh
+   docker compose exec web python manage.py import_wygiwyh
+   ```
+
+4. Open the app and compare a few months of Home and Trends against
+   `/legacy/` (monthly overview, budget analysis).
+5. To redo the import (after fixing data in `/legacy/`), run it again with
+   `--replace`. This deletes **all** ledger categories, amounts, spends and
+   recurring rules first, including anything entered in the new UI since.
+
+After the import, stop editing in `/legacy/`: changes there are not copied
+over. The legacy apps' periodic tasks keep running against the old tables until
+they are removed in a later release; that is harmless.
+
+---
+
 ## 2026-06 — MCP OAuth tables (`feat/mcp-oauth`)
 
 End-state: the `/mcp` endpoint accepts OAuth 2.1 Bearer tokens (for the
