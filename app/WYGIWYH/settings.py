@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     "apps.currencies.apps.CurrenciesConfig",
     "apps.accounts.apps.AccountsConfig",
     "apps.budgets.apps.BudgetsConfig",
+    "apps.ledger.apps.LedgerConfig",
     "apps.net_worth.apps.NetWorthConfig",
     "apps.import_app.apps.ImportConfig",
     "apps.export_app.apps.ExportConfig",
@@ -509,23 +510,21 @@ SPECTACULAR_SETTINGS = {
 
 # MCP (Model Context Protocol) adapter — see apps/mcp/ and docs/MCP.md.
 # Stateless streamable-HTTP so it works under the WSGI/gunicorn runtime.
-# Tools proxy in-process to the existing DRF ViewSets, so per-tool scope is
-# enforced by each ViewSet's permission_classes (TokenScopePermission etc.).
+# The tools (and the server instructions) live in apps/ledger/mcp.py; each tool
+# checks the caller's read/write scope itself.
 DJANGO_MCP_GLOBAL_SERVER_CONFIG = {
     "name": "Burrow",
     "stateless": True,
 }
 # Authentication on the /mcp endpoint itself. Reuses the project's API-token
 # auth so `Authorization: Token <key>` works exactly as it does for /api/.
-# (PR2 will add OAuth bearer auth to this same list.) Setting this also makes
+# Setting this also makes
 # django-mcp-server require an authenticated user at the endpoint.
 DJANGO_MCP_AUTHENTICATION_CLASSES = [
     "apps.api.authentication.APITokenAuthentication",
     "rest_framework.authentication.TokenAuthentication",
-    # OAuth Bearer auth for the claude.ai web connector (PR2). Whatever
-    # authenticates the outer /mcp request is what the per-tool permission
-    # sees (see apps/mcp/mcp.py shim), so an OAuth AccessToken here flows
-    # through to OAuthScopePermission on each tool.
+    # OAuth Bearer auth for the claude.ai web connector. Each tool in
+    # apps/ledger/mcp.py checks the token's scope itself (access_error).
     "oauth2_provider.contrib.rest_framework.OAuth2Authentication",
     "rest_framework.authentication.SessionAuthentication",
 ]
@@ -635,7 +634,7 @@ PROCRASTINATE_ON_APP_READY = "apps.common.procrastinate.on_app_ready"
 
 # PWA
 PWA_APP_NAME = SITE_TITLE
-PWA_APP_DESCRIPTION = "A simple and powerful finance tracker"
+PWA_APP_DESCRIPTION = "Household spending, budgets and sinking funds"
 PWA_APP_THEME_COLOR = "#1d1828"  # Burrow paper (dark)
 PWA_APP_BACKGROUND_COLOR = "#1d1828"
 PWA_APP_DISPLAY = "standalone"
@@ -661,9 +660,9 @@ PWA_APP_DIR = "ltr"
 PWA_APP_LANG = "en-US"
 PWA_APP_SHORTCUTS = [
     {
-        "name": "New Transaction",
-        "url": "/add/",
-        "description": "Add new transaction",
+        "name": "Add spend",
+        "url": "/?add=1",
+        "description": "Add a spend",
     }
 ]
 PWA_APP_SCREENSHOTS = [
