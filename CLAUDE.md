@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Burrow is a personal finance tracker, published at `github.com/theepicflyer/burrow` (public, AGPL-3.0). It is a **hard fork** of `eitchtee/WYGIWYH`: upstream history is kept up to the fork point, but upstream is not tracked or merged. Internal names still say WYGIWYH (the `app/WYGIWYH/` Django project, `wygiwyh` DB/user, `wygiwyh_*` theme keys); leave them, renaming them buys nothing and breaks existing deployments. User-visible text says Burrow, and the README credits WYGIWYH.
+Cache is a personal finance tracker, published at `github.com/theepicflyer/cache` (public, AGPL-3.0). It is a **hard fork** of `eitchtee/WYGIWYH`: upstream history is kept up to the fork point, but upstream is not tracked or merged. Internal names still say WYGIWYH (the `app/WYGIWYH/` Django project, `wygiwyh` DB/user, `wygiwyh_*` theme keys); leave them, renaming them buys nothing and breaks existing deployments. User-visible text says Cache, and the README credits WYGIWYH. The app was called Burrow until November 2026; Burrow is now only the design system's name, so `burrow` identifiers (`burrow/` folders, `<c-burrow.*>`, `window.burrow*` chart helpers, the `burrow-theme` storage key) belong to the design system and stay.
 
 The app is now the **ledger** (`app/apps/ledger/`): a shared household list of transactions (expenses and income) with budget categories, sinking funds, income categories, recurring transactions and trends, rebuilt from scratch on its own models and UI. The WYGIWYH apps (accounts, currencies, transactions, budgets, ...) are still installed and reachable under `/legacy/` until the old data has been imported and checked; new work goes in the ledger, not there.
 
@@ -28,7 +28,7 @@ docker compose -f docker-compose.local.yml up -d --build web
 
 Rebuild is the cost of production parity — no auto-reload. If you need a fast inner loop, `docker-compose.dev.yml` runs Django + vite with code mounts and HMR, but it has not been the canonical path for this fork's work.
 
-`docker-compose.prod.yml` is the example compose for self-hosters (pulls `ghcr.io/theepicflyer/burrow:latest`, bind-mounts `./postgres_data`); do not run it locally.
+`docker-compose.prod.yml` is the example compose for self-hosters (pulls `ghcr.io/theepicflyer/cache:latest`, bind-mounts `./postgres_data`); do not run it locally.
 
 ### One-off commands inside the container
 
@@ -57,7 +57,7 @@ docker compose -f docker-compose.local.yml up -d --build web
 Django's test runner, against Postgres. CI (`.github/workflows/ci.yml`) runs it on every PR and before every image build, together with `makemigrations --check`. Templates need the Vite manifest, so build the frontend first. Locally:
 
 ```sh
-docker run -d --rm --name burrow-test-pg -e POSTGRES_USER=wygiwyh -e POSTGRES_PASSWORD=test -e POSTGRES_DB=wygiwyh -p 127.0.0.1:55432:5432 postgres:15-bookworm
+docker run -d --rm --name cache-test-pg -e POSTGRES_USER=wygiwyh -e POSTGRES_PASSWORD=test -e POSTGRES_DB=wygiwyh -p 127.0.0.1:55432:5432 postgres:15-bookworm
 npm ci --prefix frontend && npm run build --prefix frontend
 cd app && export SECRET_KEY=test SQL_DATABASE=wygiwyh SQL_USER=wygiwyh SQL_PASSWORD=test SQL_HOST=127.0.0.1 SQL_PORT=55432
 uv run python manage.py collectstatic --noinput
@@ -116,7 +116,7 @@ For prod-parity builds, vite runs inside the Dockerfile's `vite_build` stage —
 
 ### Burrow design system
 
-The UI follows **Burrow**, the household's shared design system (its own design-system artifact; this app is "money", Kacang the squirrel's app, so `--accent` is mint). Read the Burrow README before UI work: data stays calm, the animals live at the edges; at most one full-size animal per screen (the Habitat header's; in-card empty states use `<c-ledger.empty>` with a 56px animal or none); pick the animal by job (Kacang = home/budgets/trends, Gali = history/search, Kayu = settings/editing/errors) and the mood by moment.
+The UI follows **Burrow**, the household's shared design system (its own design-system artifact; this app is Cache, Kacang the squirrel's app, which the design system calls "money", so `--accent` is mint). Read the Burrow README before UI work: data stays calm, the animals live at the edges; at most one full-size animal per screen (the Habitat header's; in-card empty states use `<c-ledger.empty>` with a 56px animal or none); pick the animal by job (Kacang = home/budgets/trends, Gali = history/search, Kayu = settings/editing/errors) and the mood by moment.
 
 - **Sources are vendored** in `frontend/burrow/` (`bundle.js`, `bundle.css`, `tokens.json`, copied from the artifact). After updating them run `node frontend/burrow/generate.cjs`, which regenerates `frontend/src/styles/burrow.generated.css` (tokens + `bh-*` classes), `app/static/img/burrow/**` (cast + traces + loader SVGs) and `app/templates/burrow/scenes/*.html` (theme-following inline scenery). Never hand-edit those outputs.
 - `frontend/src/styles/ledger.css` is the app's stylesheet on top of the generated one: layout, entry flow, transaction rows, meters, heatmap, forms. Native `<select>` is visible and styled (`.select`). Grid children that hold scrollers need `min-width: 0` (already set for `.cols`, `.stack` and `.form-grid`) or they stretch the page sideways on phones.
@@ -136,7 +136,7 @@ Charts are fed by Django's `|json_script`. Pass the **raw dict** to the template
 
 ## Releases and deploy
 
-Images go to `ghcr.io/theepicflyer/burrow`. Two workflows plus a reusable build:
+Images go to `ghcr.io/theepicflyer/cache`. Two workflows plus a reusable build:
 
 - `ci.yml`: tests on every PR; also called by `release.yml`.
 - `release.yml`: on every push to `main`, runs the tests, then `.github/scripts/plan-release.sh` looks at the PRs that push merged. If any carries a `version/*` label it bumps from the latest GitHub release, pushes `:X.Y.Z` + `:latest`, then creates the release **last** (so a release never points at a missing image). No label: it pushes `:nightly` only. `workflow_dispatch` builds a one-off `:<tag>` from any ref.

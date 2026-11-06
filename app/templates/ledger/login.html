@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Sign in · Burrow</title>
+  <title>Sign in · Cache</title>
   <script>
     (function () { var c = 'system'; try { c = localStorage.getItem('burrow-theme') || 'system'; } catch (e) {}
       var dark = c === 'dark' || (c !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -19,7 +19,7 @@
     <div class="login__card">
       <div class="login__world">{% include "burrow/scenes/world.html" %}</div>
       <div class="bh-card stack">
-        <h1 class="page-title" style="text-align:center">Burrow</h1>
+        <h1 class="page-title" style="text-align:center">Cache</h1>
         {% get_providers as providers %}
         {% for provider in providers %}
           <a class="bh-btn bh-btn--primary bh-btn--block" href="{% provider_login_url provider %}{% if request.GET.next %}?next={{ request.GET.next|urlencode }}{% endif %}">Sign in with {{ provider.name }}</a>

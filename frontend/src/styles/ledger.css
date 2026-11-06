@@ -1,5 +1,5 @@
 /*
- * Burrow money: the ledger UI. Tokens and the bh-* component classes come from
+ * Cache: the ledger UI. Tokens and the bh-* component classes come from
  * burrow.generated.css (regenerate with `node frontend/burrow/generate.cjs`).
  * Phone first; from 1024px a side rail replaces the bottom nav.
  */

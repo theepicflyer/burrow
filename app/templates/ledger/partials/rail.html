@@ -1,6 +1,6 @@
 {% load static ledger %}
 <nav class="rail" aria-label="Main">
-  <a class="brand" href="{% url 'ledger:home' %}"><img src="{% static 'img/favicon/favicon.svg' %}" alt="">Burrow</a>
+  <a class="brand" href="{% url 'ledger:home' %}"><img src="{% static 'img/favicon/favicon.svg' %}" alt="">Cache</a>
   <a class="rail__link {% if nav == 'home' %}is-active{% endif %}" href="{% url 'ledger:home' %}">{% icon 'home' 20 %} Home</a>
   <a class="rail__link {% if nav == 'history' %}is-active{% endif %}" href="{% url 'ledger:history' %}">{% icon 'list' 20 %} History</a>
   <a class="rail__link {% if nav == 'trends' %}is-active{% endif %}" href="{% url 'ledger:trends' %}">{% icon 'chart' 20 %} Trends</a>

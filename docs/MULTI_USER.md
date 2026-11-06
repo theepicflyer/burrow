@@ -69,18 +69,18 @@ renders above it, so your own login keeps working unchanged.
 **Connecting to an existing account (you):** `apps/users/adapters.py`'s
 `AutoConnectSocialAccountAdapter` auto-connects an incoming OIDC login to an
 existing local user **by matching email** (`User.objects.get(email__iexact=email)`).
-This only works if your Burrow account's email is *exactly* the same as your
+This only works if your Cache account's email is *exactly* the same as your
 Pocket ID account's email. Since Pocket ID is self-hosted, its emails are
 whatever you set them to be — there's no third-party verification step to
 worry about, but you still need the two to match character-for-character
 before either of you first logs in via OIDC.
 
-**First-time signup (second user):** if they don't already have a Burrow account with
+**First-time signup (second user):** if they don't already have a Cache account with
 a matching email, their first Pocket ID login auto-creates one — gated by
 `SOCIALACCOUNT_AUTO_SIGNUP`, which reads `OIDC_ALLOW_SIGNUP` (default
 `true`). Once they've signed up, consider setting `OIDC_ALLOW_SIGNUP=false` in
 `.env` and restarting the web container, so no other Pocket ID account can
-silently create a new Burrow user.
+silently create a new Cache user.
 
 ## 2. Sharing everything with a second user
 
@@ -92,7 +92,7 @@ Set `HOUSEHOLD_MODE=true` in `.env` and restart the web container. Every signed-
 
 How it works: `in_household(user)` in `apps/common/models.py` short-circuits every visibility manager (`SharedObjectManager`, `OwnedObjectManager`, the transaction managers, `BudgetManager`) to return all rows, and `can_manage(obj, user)` replaces the owner-only checks in the edit/delete/share views. The Share button is hidden. `owner` is still recorded, so it shows who created a row. Per-user view preferences such as untracking an account stay per user.
 
-Only turn this on when every account on the instance belongs to the household: it treats any signed-in user as a co-owner. Lock signup down (`OIDC_ALLOW_SIGNUP=false`, or restrict who can use the Burrow client in your IdP) so nobody else can join.
+Only turn this on when every account on the instance belongs to the household: it treats any signed-in user as a co-owner. Lock signup down (`OIDC_ALLOW_SIGNUP=false`, or restrict who can use the Cache client in your IdP) so nobody else can join.
 
 A member who owns no accounts of their own (typical for the second login) gets the first visible Main account as the default when entering a transaction.
 

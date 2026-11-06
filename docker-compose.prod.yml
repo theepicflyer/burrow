@@ -1,6 +1,6 @@
 services:
   web:
-    image: ghcr.io/theepicflyer/burrow:latest
+    image: ghcr.io/theepicflyer/cache:latest
     container_name: ${SERVER_NAME}
     ports:
       - "${OUTBOUND_PORT:-8000}:${INTERNAL_PORT:-8000}"

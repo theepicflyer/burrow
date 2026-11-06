@@ -51,7 +51,7 @@ CURRENCY = "$"
 TYPES = ", ".join(f'"{t}"' for t in Type.values)
 
 INSTRUCTIONS = """\
-Burrow is a household money ledger, shared by everyone in the household. Each \
+Cache is a household money ledger, shared by everyone in the household. Each \
 transaction is an expense or income, always with a positive amount in dollars \
 ($), and sits in one category. Budget categories have a monthly budget; fund \
 categories are sinking funds topped up on the 1st of each month and drawn down \
@@ -76,7 +76,7 @@ def access_error(request, write: bool) -> str | None:
     """Why ``request`` may not use a read (or write) tool, or ``None`` if it may."""
     user = getattr(request, "user", None)
     if user is None or not user.is_authenticated:
-        return "Not signed in. Connect to Burrow with an API token or OAuth."
+        return "Not signed in. Connect to Cache with an API token or OAuth."
     token = getattr(request, "auth", None)
     if isinstance(token, APIToken):
         if write and token.is_read_only:

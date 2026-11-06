@@ -12,7 +12,7 @@
   "author": "Herculino Trotta",
   "license": "AGPL-3.0",
   "bugs": {
-    "url": "https://github.com/theepicflyer/burrow"
+    "url": "https://github.com/theepicflyer/cache"
   },
   "type": "module",
   "dependencies": {

@@ -46,7 +46,7 @@ urlpatterns = [
     #     callback,
     #     name="openid_connect_callback",
     # ),
-    # Burrow's ledger is the app. The WYGIWYH screens it replaces stay reachable
+    # Cache's ledger is the app. The WYGIWYH screens it replaces stay reachable
     # under /legacy/ until the old data has been imported and checked.
     path("", include("apps.ledger.urls")),
     path(

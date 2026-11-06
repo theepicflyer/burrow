@@ -1,4 +1,4 @@
-"""Burrow's household ledger.
+"""Cache's household ledger.
 
 One shared ledger: every signed-in user sees and edits everything. There are no
 accounts or wallet balances; the ledger is a list of transactions (expenses and
