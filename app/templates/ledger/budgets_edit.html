@@ -1,0 +1,36 @@
+{% extends "ledger/base.html" %}
+{% load ledger %}
+{% block title %}Edit amounts{% endblock %}
+{% block content %}
+<c-burrow.habitat kind="river" mood="busy">
+  <span class="bh-habitat__eyebrow"><a href="{% url 'ledger:settings' %}" style="color:inherit">Settings</a></span>
+  <h1 class="page-title">Monthly amounts</h1>
+  <p class="bh-habitat__sub">Budgets and fund top-ups</p>
+</c-burrow.habitat>
+<form method="post" class="bh-card form-grid">
+  {% csrf_token %}
+  <div class="field">
+    <label for="from_month">Apply from</label>
+    <select class="select" id="from_month" name="from_month" data-reload-param="from_month">
+      {% for m in month_choices %}<option value="{{ m|date:'Y-m' }}" {% if m == from_month %}selected{% endif %}>{{ m|date:"F Y" }}</option>{% endfor %}
+    </select>
+    <span class="field__hint">Changes apply from this month on. Earlier months keep the amounts they had, so past trends don't move.</span>
+  </div>
+  <div class="amount-rows">
+    {% for r in rows %}
+      <label class="amount-row {% if r.error %}has-error{% endif %}">
+        <span>
+          <span class="setting__title">{{ r.cat.name }}</span><br>
+          <span class="small muted">{% if r.cat.is_fund %}Fund top-up{% else %}Budget{% endif %}</span>
+          {% if r.error %}<br><span class="field__error">{{ r.error }}</span>{% endif %}
+        </span>
+        <span class="input input--affix">$<input name="amount_{{ r.cat.id }}" inputmode="decimal" value="{{ r.amount|floatformat:2 }}"></span>
+      </label>
+    {% endfor %}
+  </div>
+  <div class="actions actions--end">
+    <a class="bh-btn bh-btn--ghost" href="{% url 'ledger:settings' %}">Cancel</a>
+    <button class="bh-btn bh-btn--primary" type="submit">Save amounts</button>
+  </div>
+</form>
+{% endblock %}

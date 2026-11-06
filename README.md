@@ -4,25 +4,28 @@
   Burrow
 </h1>
 
-<h4 align="center">A self-hosted finance tracker with budgets and sinking funds.</h4>
+<h4 align="center">A self-hosted household money tracker with budgets and sinking funds.</h4>
 
-Burrow is a hard fork of [WYGIWYH](https://github.com/eitchtee/WYGIWYH) by [Herculino Trotta](https://github.com/eitchtee). It keeps everything WYGIWYH does (multi-currency accounts, transaction rules, recurring and installment transactions, a DCA tracker, import/export, an API) and adds:
+Burrow is a shared ledger for a household: everyone signs in and sees the same list of transactions, expenses and income. It started as a hard fork of [WYGIWYH](https://github.com/eitchtee/WYGIWYH) by [Herculino Trotta](https://github.com/eitchtee) and has since been rebuilt around what a household budget needs:
 
-* Budgets: a monthly budget per category, a budget tab on the monthly overview and a budget analysis page with trends.
-* Sinking funds: accounts marked as sinking get a monthly allocation automatically, and their balance carries over month to month.
-* Households: a second login through OIDC that sees and edits the same shared accounts and categories.
-* An MCP server at `/mcp` with OAuth, so Claude and other agents can read and log transactions. See [docs/MCP.md](docs/MCP.md).
-* The Burrow design system, with light and dark themes.
+* **Fast entry on a phone.** One page at a time, each above the keyboard: amount on a numpad, title (a past title brings its category), category, save. Date, month, note and repeat are optional on the last page.
+* **Income and expenses.** Income categories for pay and the like; money back in a budget or fund counts against what was spent. Home and Trends show what came in, what went out and what was left over.
+* **Budgets.** Each category has a monthly budget. Changing it applies from a month on, so past months keep the budget they had.
+* **Sinking funds.** A fund grows by a set amount on the 1st of each month and shrinks by what you spend from it. Burrow tracks the balance.
+* **Date and month are separate.** A bill paid on 10 June can count toward May.
+* **Recurring** expenses and income are added when they fall due, so editing one changes every entry still to come.
+* **Trends** show which categories go over budget month after month, and whether each fund's top-up covers what you spend from it.
+* A phone-first PWA in the Burrow design system, with light and dark themes. Sign in with OIDC (for example Pocket ID).
+* An MCP server at `/mcp` with OAuth, so Claude and other agents can read the ledger and log transactions. See [docs/MCP.md](docs/MCP.md).
 
-Burrow does not track upstream. Changes from WYGIWYH may be brought over by hand, but the two have diverged.
+Burrow does not track upstream. The original WYGIWYH screens are still reachable under `/legacy/` while old data is imported; see [MIGRATIONS.md](MIGRATIONS.md).
 
 <p align="center">
-  <img src=".github/img/screenshots/monthly_light.png" alt="Monthly overview, light theme" width="49%" /> <img src=".github/img/screenshots/budget_analysis_light.png" alt="Budget analysis, light theme" width="49%" />
-  <img src=".github/img/screenshots/monthly_dark.png" alt="Monthly overview, dark theme" width="49%" /> <img src=".github/img/screenshots/budget_analysis_dark.png" alt="Budget analysis, dark theme" width="49%" />
-  <img src=".github/img/screenshots/monthly_budget_tab_light.png" alt="Monthly overview, Budget tab" width="32%" /> <img src=".github/img/screenshots/net_worth_light.png" alt="Net worth" width="32%" /> <img src=".github/img/screenshots/calendar_dark.png" alt="Calendar" width="32%" />
+  <img src=".github/img/screenshots/home_light.png" alt="Home, light theme" width="49%" /> <img src=".github/img/screenshots/trends_light.png" alt="Trends, light theme" width="49%" />
+  <img src=".github/img/screenshots/home_dark.png" alt="Home, dark theme" width="49%" /> <img src=".github/img/screenshots/trends_dark.png" alt="Trends, dark theme" width="49%" />
 </p>
 <p align="center">
-  <img src=".github/img/screenshots/phone_monthly.png" alt="Phone: monthly overview" width="24%" /> <img src=".github/img/screenshots/phone_budget_analysis.png" alt="Phone: budget analysis" width="24%" /> <img src=".github/img/screenshots/phone_transactions.png" alt="Phone: transactions" width="24%" /> <img src=".github/img/screenshots/phone_add.png" alt="Phone: add a transaction" width="24%" />
+  <img src=".github/img/screenshots/phone_home.png" alt="Phone: home" width="24%" /> <img src=".github/img/screenshots/phone_add.png" alt="Phone: adding a transaction" width="24%" /> <img src=".github/img/screenshots/phone_history.png" alt="Phone: history" width="24%" /> <img src=".github/img/screenshots/phone_trends.png" alt="Phone: trends" width="24%" />
 </p>
 
 # Running it
@@ -118,14 +121,14 @@ Replace `https://your.burrow.domain` with the actual URL where your Burrow insta
 # Further reading
 
 * [docs/MCP.md](docs/MCP.md): connecting Claude or another MCP client.
-* [docs/MULTI_USER.md](docs/MULTI_USER.md): a second login on shared household data.
+* [docs/MULTI_USER.md](docs/MULTI_USER.md): setting up OIDC logins (Pocket ID) for the household. Every signed-in user shares the one ledger.
 * [MIGRATIONS.md](MIGRATIONS.md): playbooks for upgrades that needed manual steps.
-* The [WYGIWYH wiki](https://github.com/eitchtee/WYGIWYH/wiki) still describes how transactions, accounts, currencies, rules and DCA work. Those parts are unchanged.
 
 # Caveats
 
-* This is not double-entry accounting. Calculations happen at request time, which keeps the model simple but can get slow with a lot of history.
-* Budget totals add amounts across currencies without converting them. The analysis page warns when more than one currency is in use.
+* Burrow tracks spending, not wallets: there are no account balances, only fund balances.
+* One currency, shown as `$`. Amounts are not converted.
+* Everyone who can sign in sees and edits the whole ledger.
 
 # Credits and license
 

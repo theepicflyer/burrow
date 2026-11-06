@@ -1,0 +1,38 @@
+{% load django_vite static pwa ledger %}<!DOCTYPE html>
+<html lang="en" data-theme="wygiwyh_dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-visual">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <title>{% block title %}{% endblock %} · Burrow</title>
+  <script>
+    (function () {
+      var c = 'system';
+      try { c = localStorage.getItem('burrow-theme') || 'system'; } catch (e) {}
+      var dark = c === 'dark' || (c !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.dataset.theme = dark ? 'wygiwyh_dark' : 'wygiwyh_light';
+    })();
+  </script>
+  <meta name="theme-color" content="#fff7ea" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1d1828" media="(prefers-color-scheme: dark)">
+  {% include 'includes/head/favicons.html' %}
+  {% progressive_web_app_meta %}
+  {% vite_hmr_client %}
+  {% vite_asset 'ledger.js' %}
+</head>
+<body class="bh-app bh-app--money">
+  <div class="shell">
+    {% include "ledger/partials/rail.html" %}
+    <main class="page {% block page_class %}{% endblock %}" id="main">
+      <div id="page-body">
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+  </div>
+  {% include "ledger/partials/bottom_nav.html" %}
+  {% entry_flow %}
+  <div class="toasts" id="toasts" aria-live="polite" data-art="{% static 'img/burrow/characters/' %}">
+    {% for message in messages %}<span data-toast="{{ message }}" data-mood="{% if message.level_tag == 'error' or message.level_tag == 'warning' %}worried{% else %}joy{% endif %}" data-who="{% if message.level_tag == 'error' %}kayu{% else %}kacang{% endif %}"></span>{% endfor %}
+  </div>
+</body>
+</html>

@@ -78,7 +78,7 @@ class HouseholdModeOffTests(HouseholdTestBase):
 
     def test_non_owner_cannot_reach_the_account(self):
         self.client.login(username="bob@example.com", password="pw")
-        response = self.client.delete(f"/account/{self.account.id}/delete/", **HTMX)
+        response = self.client.delete(f"/legacy/account/{self.account.id}/delete/", **HTMX)
         self.assertEqual(response.status_code, 404)
         self.assertTrue(Account.all_objects.exists())
 
@@ -102,13 +102,13 @@ class HouseholdModeOnTests(HouseholdTestBase):
 
     def test_member_can_delete_another_members_account(self):
         self.client.login(username="bob@example.com", password="pw")
-        response = self.client.delete(f"/account/{self.account.id}/delete/", **HTMX)
+        response = self.client.delete(f"/legacy/account/{self.account.id}/delete/", **HTMX)
         self.assertEqual(response.status_code, 204)
         self.assertFalse(Account.all_objects.exists())
 
     def test_share_button_is_hidden(self):
         self.client.login(username="alice@example.com", password="pw")
-        response = self.client.get("/accounts/list/", **HTMX)
+        response = self.client.get("/legacy/accounts/list/", **HTMX)
         self.assertNotContains(response, "/share/")
 
     def test_default_account_falls_back_to_household_main(self):

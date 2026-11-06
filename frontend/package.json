@@ -48,5 +48,8 @@
   },
   "resolutions": {
     "rollup": "npm:@rollup/wasm-node"
+  },
+  "devDependencies": {
+    "@phosphor-icons/core": "2.1.1"
   }
 }

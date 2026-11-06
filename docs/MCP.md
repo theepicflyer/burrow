@@ -1,40 +1,34 @@
-# MCP adapter (`/mcp`)
+# MCP server (`/mcp`)
 
-Burrow exposes a Model Context Protocol (MCP) endpoint at **`/mcp`** that lets an
-MCP client (the Claude Code CLI today; the claude.ai web connector once OAuth
-lands — see *Roadmap*) drive the tracker through tools backed by the existing DRF
-API. It is a **stateless streamable-HTTP** MCP server provided by
-[`django-mcp-server`](https://pypi.org/project/django-mcp-server/) (0.5.7).
-
-Each tool is a thin wrapper over one DRF ViewSet action, so MCP requests run
-through the same serializers, validation, ownership, and **per-token scope** as
-`/api/`. There is no separate code path with its own rules.
+Burrow exposes a Model Context Protocol (MCP) endpoint at **`/mcp`** so an agent
+(claude.ai custom connector, Claude Code CLI, or any MCP client) can read the
+household ledger and, with write access, log expenses and income. It is a
+**stateless streamable-HTTP** server built on
+[`django-mcp-server`](https://pypi.org/project/django-mcp-server/). The tools are a
+hand-written `MCPToolset` in `app/apps/ledger/mcp.py` over the ledger models and
+`apps.ledger.services`, so agents see the same numbers as the app.
 
 ## Authentication
 
-`/mcp` accepts **two** kinds of credential:
+`/mcp` accepts:
 
-1. **`APIToken`** (the Claude Code CLI path) — `Authorization: Token <key>`.
-   Create one in the web UI under your account settings.
-2. **OAuth 2.1 Bearer token** (the claude.ai web-connector path) —
-   `Authorization: Bearer <access-token>`, obtained via the OAuth flow below.
+1. **`APIToken`**: `Authorization: Token <key>`. Create one in the app under
+   Settings → Agents (MCP); it is shown once. Scope is read only or read and write.
+2. **OAuth 2.1 Bearer token**: `Authorization: Bearer <access-token>`, from the
+   OAuth flow below (the claude.ai path). Scopes are `mcp:read` and `mcp:write`.
+3. A signed-in browser session or a DRF authtoken (full access, as on `/api/`).
 
-The endpoint itself requires an authenticated, non-demo user
-(`NotInDemoMode`, `IsAuthenticated`). The read/write gate is enforced **per tool**
-on the underlying ViewSet:
+Every tool requires a signed-in user. Each tool checks scope itself before it runs
+(`access_error` in `apps/ledger/mcp.py`): read tools need `mcp:read` on an OAuth
+token, write tools need a read-and-write `APIToken` or `mcp:write`.
+`LedgerTools._add_tools_to` refuses to register a tool that skips this check.
 
-- `TokenScopePermission` for `APIToken`s — a `read_only` token may call `list_*`
-  tools but is denied every `create_*` / `update_*` / `delete_*`.
-- `OAuthScopePermission` for OAuth tokens — `mcp:read` allows SAFE (read) tools,
-  `mcp:write` is required for writes.
-
-Both permissions **no-op for the other credential type** (they sit together in
-the DRF default permission stack, which DRF AND-s), so neither path can break the
-other.
-
-Unauthenticated requests to `/mcp` get **HTTP 401** with a
+Unauthenticated requests get **HTTP 401** with a
 `WWW-Authenticate: Bearer resource_metadata="…/.well-known/oauth-protected-resource"`
-header that bootstraps the claude.ai OAuth discovery handshake (see below).
+header that starts the claude.ai OAuth discovery handshake.
+
+The ledger is shared: every signed-in user sees all of it, so tools do no
+per-user filtering.
 
 ## Connecting from claude.ai (OAuth web connector)
 
@@ -109,96 +103,46 @@ claude mcp add --transport http burrow https://burrow.example.com/mcp \
 Then list tools / use them from a Claude Code session. For a local dev stack the
 URL is `http://localhost:<port>/mcp`.
 
-> **Write-access risk — read this before using a `read_write` token.**
-> The write tools give an LLM full CRUD over your ledger: it can create, modify,
-> and **permanently delete** transactions, accounts, budgets, and more. On
-> `currencies` and `exchange_rates` in particular, a single bad write can
-> silently corrupt every multi-currency figure in the app (balances, net worth,
-> reports) without an obvious error. **Connect with a `read_only` token unless
-> you specifically intend the model to make changes**, and review any proposed
-> writes. Deletes are not soft-deletes at the API level — they are gone.
+> **Write access.** A `read_write` token (or an OAuth connection granted
+> `mcp:write`) lets the model add, edit and **permanently delete** transactions.
+> Use `read_only` unless you want the agent to log transactions, and review what
+> it proposes.
 
-## Tool surface
 
-Registration is data-driven in `app/apps/mcp/mcp.py` (a list of resources, not
-~55 hand-written calls). Names are snake_case: **plural for list, singular for
-writes**.
+## Tools
 
-**13 ledger ViewSets — full CRUD** (`list_*`, `create_*`, `update_*`,
-`delete_*` each):
+Amounts are 2-decimal strings in dollars (`$`), dates `YYYY-MM-DD`, months
+`YYYY-MM`. Every transaction has a `type`, `expense` or `income`, and a positive
+`amount`. Categories are `budget`, `fund` or `income` (salary and the like).
+Income in a budget or fund category is money back (a refund, or money put into a
+fund), so a budget's or fund's `spent` is net of it. `income` is what the income
+categories received, `out` is what budgets and funds spent, and `net` is income
+minus out. `date` is when it happened; `month` is the month it counts toward.
+Every tool except `get_ledger_info` first creates any recurring entries that
+have fallen due.
 
-| Resource | list / create / update / delete |
+Read:
+
+| Tool | What it returns |
 | --- | --- |
-| transactions | `list_transactions` / `create_transaction` / `update_transaction` / `delete_transaction` |
-| categories | `list_categories` / `create_category` / `update_category` / `delete_category` |
-| tags | `list_tags` / `create_tag` / `update_tag` / `delete_tag` |
-| entities | `list_entities` / `create_entity` / `update_entity` / `delete_entity` |
-| installment plans | `list_installment_plans` / `create_installment_plan` / … |
-| recurring transactions | `list_recurring_transactions` / `create_recurring_transaction` / … |
-| account groups | `list_account_groups` / `create_account_group` / … |
-| accounts | `list_accounts` / `create_account` / … |
-| currencies | `list_currencies` / `create_currency` / … |
-| budgets | `list_budgets` / `create_budget` / … |
-| exchange rates | `list_exchange_rates` / `create_exchange_rate` / … |
-| DCA strategies | `list_dca_strategies` / `create_dca_strategy` / … |
-| DCA entries | `list_dca_entries` / `create_dca_entry` / … |
+| `get_ledger_info` | Currency (`$`), today, the current month, who is signed in, whether writes are allowed, and what the fields mean. |
+| `list_categories` | Categories with kind (budget, fund or income), this month's amount (null for income), and for funds the balance and target. |
+| `list_transactions` | A page of transactions (filter by `month`, `date_from`/`date_to`, `category_id`, `type`, `search`), the total count, `total_expenses` and `total_income`. Limit is capped at 500. |
+| `get_month_summary` | Per budget category: budget, spent, left, over. Per fund: top-up, spent, month-end balance. Per income category: received. The month's `flow` (income, out, net). Pace for the current month. |
+| `get_budget_analysis` | Per budget category per month budget and spent, months over, averages, `consistently_over`; monthly totals; fund balance series; `flows`: income, out and net per month with their averages. Running months are `partial` and left out of counts and averages. |
+| `list_recurring` | Recurring rules with type, schedule, next date and the month that entry will count toward. |
 
-**2 import ViewSets — read-only** (`list_*` only): `list_import_profiles`,
-`list_import_runs`.
+Write (needs write scope):
 
-**Total: 54 tools** (13 × 4 + 2).
+| Tool | What it does |
+| --- | --- |
+| `add_transaction` | Adds an expense or income. `type` defaults from the category (`income` for an income category, else `expense`), `date` to today, `month` to the date's month. |
+| `update_transaction` | Partial update of one transaction, including its type. |
+| `delete_transaction` | Deletes one transaction. |
 
-### Notable omissions
+There are no tools for editing categories, monthly amounts or recurring rules;
+do those in the app.
 
-- **No `retrieve` tool.** `django-mcp-server` has no retrieve publisher, so
-  there is no "get one by id" tool. Use `list_*` with the ViewSet's query
-  filters to find a record (and its id); `update_*` / `delete_*` take that id.
-- **`ImportViewSet` is not exposed at all.** It is a plain `ViewSet` whose only
-  action is `create`, which triggers an asynchronous file import and writes an
-  `ImportRun`. It has no safe `list` action, so it is skipped entirely rather
-  than exposing an import-trigger write tool.
-
-### `update_*` is PUT, not PATCH
-
-Update tools call the ViewSet's `update` (HTTP PUT), so the `body` must contain
-**all required fields**, not just the ones being changed — a partial body will
-fail validation on the missing required fields. Each update tool's instructions
-state this.
-
-### Input schemas (`body_schema`)
-
-This DRF version doesn't expose the schema hook `django-mcp-server` expects, so
-the library would otherwise advertise an empty generic `body` for write tools
-(it logs a boot-time CRITICAL when it falls back). To keep the write tools
-usable, `app/apps/mcp/schema.py` derives a JSON Schema per resource from its DRF
-serializer — walking `serializer().get_fields()`, skipping read-only fields,
-typing each field, and marking required ones — and we pass it as `body_schema=`.
-Custom relational fields (the tag/category/entity "id-or-name" fields) carry
-their own schema via `@extend_schema_field`, which the deriver reads. Fields it
-can't classify degrade to an untyped `{}` rather than failing. With explicit
-schemas supplied for all create/update tools, no CRITICAL is logged at boot.
-
-## The django-mcp-server shim (why the library is monkeypatched)
-
-`app/apps/mcp/mcp.py` installs `_patch_initialize_request_for_body()`, a one-
-staticmethod monkeypatch of `BaseAPIViewCallerTool._patched_initialize_request`.
-
-The library (0.5.7) drops the request body on the way into create/update tools:
-it builds an inner request carrying the tool `body` but then throws it away and
-returns the **outer** JSON-RPC request, whose `.data` is the `tools/call`
-envelope rather than the create fields — so DRF reports the fields as missing and
-no row is written. The shim keeps the body-carrying inner request **and** forwards
-the caller's authenticated `APIToken` (`_force_auth_user` / `_force_auth_token`)
-onto it before running the genuine `APIView.initialize_request`, so `.data` parses
-the body and `TokenScopePermission` still sees the real token and method. It
-patches one staticmethod once and applies to every registered tool; it does not
-fork or vendor the library. Full rationale is in the `mcp.py` module docstring.
-
-**If you bump `django-mcp-server`, re-verify the shim still applies** (the body-
-plumbing bug it works around may be fixed or moved upstream).
-
-## Migrations / deploy note
-
-The OAuth path adds the `oauth2_provider` app, which ships its own migrations
-(Application / AccessToken / Grant / RefreshToken tables). Run `migrate` on
-deploy — see the `MIGRATIONS.md` entry. No project-level migrations are added.
+Bad input (unknown category, bad date, an amount that is not more than 0 or has
+more than 2 decimals, an unknown type, an expense in an income category) comes
+back as an MCP error result with a message the agent can act on.

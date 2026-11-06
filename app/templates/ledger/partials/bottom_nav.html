@@ -1,0 +1,20 @@
+{% load ledger %}
+{# Burrow BottomNav: four destinations and the add FAB, Kacang peeking over the top. #}
+<div class="bh-bottomnav">
+  <c-burrow.mascot who="kacang" mood="happy" size="56" class="bh-bottomnav__peek" />
+  <nav class="bh-nav" aria-label="Main">
+    <a class="bh-nav__item {% if nav == 'home' %}is-active{% endif %}" href="{% url 'ledger:home' %}" {% if nav == 'home' %}aria-current="page"{% endif %}>
+      <span class="bh-nav__pill">{% icon 'home' 22 %}</span><span class="bh-nav__label">Home</span>
+    </a>
+    <a class="bh-nav__item {% if nav == 'history' %}is-active{% endif %}" href="{% url 'ledger:history' %}" {% if nav == 'history' %}aria-current="page"{% endif %}>
+      <span class="bh-nav__pill">{% icon 'list' 22 %}</span><span class="bh-nav__label">History</span>
+    </a>
+    <button type="button" class="bh-nav__fab" data-add-spend aria-label="Add transaction">{% icon 'plus' 26 %}</button>
+    <a class="bh-nav__item {% if nav == 'trends' %}is-active{% endif %}" href="{% url 'ledger:trends' %}" {% if nav == 'trends' %}aria-current="page"{% endif %}>
+      <span class="bh-nav__pill">{% icon 'chart' 22 %}</span><span class="bh-nav__label">Trends</span>
+    </a>
+    <a class="bh-nav__item {% if nav == 'settings' %}is-active{% endif %}" href="{% url 'ledger:settings' %}" {% if nav == 'settings' %}aria-current="page"{% endif %}>
+      <span class="bh-nav__pill">{% icon 'gear' 22 %}</span><span class="bh-nav__label">Settings</span>
+    </a>
+  </nav>
+</div>

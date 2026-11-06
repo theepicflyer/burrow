@@ -7,9 +7,8 @@ Auth on ``/mcp``: the configured ``DJANGO_MCP_AUTHENTICATION_CLASSES`` (API
 token + OAuth Bearer + session). An unauthenticated request returns ``401``
 with a ``WWW-Authenticate: Bearer resource_metadata="..."`` challenge (see
 ``_MCPView.get_authenticate_header``) that kicks off the claude.ai discovery
-handshake. Per-tool read/write scope is enforced downstream on the DRF
-ViewSets (``TokenScopePermission`` for API tokens, ``OAuthScopePermission``
-for OAuth tokens).
+handshake. The tools live in ``apps.ledger.mcp``; each checks read/write scope
+for API tokens and OAuth tokens itself (``access_error``).
 
 The OAuth ``authorize``/``token`` endpoints come from django-oauth-toolkit
 (mounted under ``/oauth/``); the discovery ``.well-known`` documents, CIMD client

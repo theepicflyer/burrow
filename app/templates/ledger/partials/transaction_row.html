@@ -1,0 +1,14 @@
+{% load static ledger %}
+<button type="button" class="spend" data-spend="{{ t|spend_json }}">
+  {% if t.is_income and not t.category.is_income %}{% category_tile t.category "tile--in" %}{% else %}{% category_tile t.category %}{% endif %}
+  <span class="spend__text">
+    <span class="spend__title">{{ t.title }}</span>
+    <span class="spend__sub">
+      <span>{{ t.category.name }}{% if show_date %} · {{ t.date|date:"j M" }}{% endif %}</span>
+      {% if t.counts_elsewhere %}<span class="tag">for {{ t.month|date:"M Y" }}</span>{% endif %}
+      {% if t.recurring_id %}{% icon 'repeat' 14 'Recurring' %}{% endif %}
+      {% if t.note %}{% icon 'note' 14 'Has a note' %}{% endif %}
+    </span>
+  </span>
+  <span class="spend__amount{% if t.is_income %} is-in{% endif %}">{% money t.amount signed=True type=t.type %}</span>
+</button>

@@ -1,0 +1,10 @@
+{% load static ledger %}
+<nav class="rail" aria-label="Main">
+  <a class="brand" href="{% url 'ledger:home' %}"><img src="{% static 'img/favicon/favicon.svg' %}" alt="">Burrow</a>
+  <a class="rail__link {% if nav == 'home' %}is-active{% endif %}" href="{% url 'ledger:home' %}">{% icon 'home' 20 %} Home</a>
+  <a class="rail__link {% if nav == 'history' %}is-active{% endif %}" href="{% url 'ledger:history' %}">{% icon 'list' 20 %} History</a>
+  <a class="rail__link {% if nav == 'trends' %}is-active{% endif %}" href="{% url 'ledger:trends' %}">{% icon 'chart' 20 %} Trends</a>
+  <a class="rail__link {% if nav == 'settings' %}is-active{% endif %}" href="{% url 'ledger:settings' %}">{% icon 'gear' 20 %} Settings</a>
+  <button type="button" class="bh-btn bh-btn--primary rail__add" data-add-spend>{% icon 'plus' 20 %} Add transaction</button>
+  <div class="rail__foot small muted">{{ request.user.first_name|default:request.user.email }}</div>
+</nav>

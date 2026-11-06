@@ -1,0 +1,31 @@
+{% load ledger static %}
+{# Category icon picker: Automatic (from the name), Letter, or one of the library's icons. Search filters by name and tags. #}
+<div class="field" data-icon-picker data-sprite="{{ sprite }}" data-acorn="{% static 'img/burrow/traces/acorn.svg' %}">
+  <span class="field__label">Icon</span>
+  <div class="icon-current">
+    <span data-icon-preview></span>
+    <span class="grow"><span class="setting__title" data-icon-label></span><br><span class="small muted" data-icon-hint></span></span>
+  </div>
+  <details class="icon-picker" {% if error %}open{% endif %}>
+    <summary class="bh-btn bh-btn--secondary bh-btn--sm">Choose an icon</summary>
+    <div class="icon-picker__body">
+      <label class="input input--affix">{% icon 'search' 20 %}<span class="sr-only">Search icons</span><input type="search" data-icon-search placeholder="Search, e.g. car or food" enterkeyhint="search"></label>
+      <div class="icon-grid icon-grid--wide">
+        <label class="icon-opt icon-opt--wide"><input type="radio" name="icon" value="" {% if not value %}checked{% endif %}><span class="icon-opt__box">Automatic</span></label>
+        <label class="icon-opt icon-opt--wide"><input type="radio" name="icon" value="letter" {% if value == 'letter' %}checked{% endif %}><span class="icon-opt__box">First letter</span></label>
+      </div>
+      {% for g in groups %}
+        <section class="icon-group" data-icon-group>
+          <p class="icon-group__title">{{ g.label }}</p>
+          <div class="icon-grid">
+            {% for i in g.icons %}<label class="icon-opt" title="{{ i.l }}" data-k="{{ i.k }}" data-l="{{ i.l }}"><input type="radio" name="icon" value="{{ i.n }}" {% if value == i.n %}checked{% endif %}><span class="icon-opt__box">{% category_icon i.n 24 %}</span><span class="sr-only">{{ i.l }}</span></label>{% endfor %}
+          </div>
+        </section>
+      {% endfor %}
+      <p class="small muted" data-icon-none hidden>No icons match. Try another word.</p>
+      <p class="small muted">Icons by <a href="https://phosphoricons.com" rel="noopener">Phosphor</a>.</p>
+    </div>
+  </details>
+  {% if error %}<span class="field__error">{{ error }}</span>{% endif %}
+</div>
+{{ match|json_script:"icon-match" }}

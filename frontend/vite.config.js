@@ -11,6 +11,7 @@ const __dirname = dirname(__filename);
 
 const rollupInputs = {
     main: resolve(__dirname, 'src/main.js'),
+    ledger: resolve(__dirname, 'src/ledger.js'),
 };
 
 
@@ -69,10 +70,13 @@ export default defineConfig({
                         return 'vendor-math';
                     }
 
+                    if (id.includes('/htmx.org/')) {
+                        return 'vendor-htmx';
+                    }
+
                     if (
                         id.includes('/alpinejs/') ||
                         id.includes('/@alpinejs/') ||
-                        id.includes('/htmx.org/') ||
                         id.includes('/hyperscript.org/')
                     ) {
                         return 'vendor-interaction';

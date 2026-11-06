@@ -1,0 +1,41 @@
+{% load django_vite pwa socialaccount %}<!DOCTYPE html>
+<html lang="en" data-theme="wygiwyh_dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Sign in · Burrow</title>
+  <script>
+    (function () { var c = 'system'; try { c = localStorage.getItem('burrow-theme') || 'system'; } catch (e) {}
+      var dark = c === 'dark' || (c !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.dataset.theme = dark ? 'wygiwyh_dark' : 'wygiwyh_light'; })();
+  </script>
+  {% include 'includes/head/favicons.html' %}
+  {% progressive_web_app_meta %}
+  {% vite_hmr_client %}
+  {% vite_asset 'ledger.js' %}
+</head>
+<body class="bh-app bh-app--money">
+  <main class="login">
+    <div class="login__card">
+      <div class="login__world">{% include "burrow/scenes/world.html" %}</div>
+      <div class="bh-card stack">
+        <h1 class="page-title" style="text-align:center">Burrow</h1>
+        {% get_providers as providers %}
+        {% for provider in providers %}
+          <a class="bh-btn bh-btn--primary bh-btn--block" href="{% provider_login_url provider %}{% if request.GET.next %}?next={{ request.GET.next|urlencode }}{% endif %}">Sign in with {{ provider.name }}</a>
+        {% endfor %}
+        {% if not providers %}
+          <form method="post" class="form-grid">
+            {% csrf_token %}
+            {% if form.non_field_errors %}<p class="form-error">{{ form.non_field_errors|join:" " }}</p>{% endif %}
+            <div class="field"><label for="id_username">E-mail</label><input class="input" type="email" id="id_username" name="username" autocomplete="email" required></div>
+            <div class="field"><label for="id_password">Password</label><input class="input" type="password" id="id_password" name="password" autocomplete="current-password" required></div>
+            <input type="hidden" name="next" value="{{ request.GET.next }}">
+            <button class="bh-btn bh-btn--primary bh-btn--block" type="submit">Sign in</button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+  </main>
+</body>
+</html>

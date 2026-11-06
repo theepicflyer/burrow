@@ -1,0 +1,133 @@
+{% load static ledger %}
+{#
+  The add/edit transaction flow, one page at a time so nothing hides behind the phone keyboard:
+  amount (own numpad, no keyboard) → title (keyboard; Return or a suggestion moves on) →
+  category (tap moves on) → review (date, month, note, repeat are optional; one tap saves).
+  Editing opens straight on the review page. Driven by frontend/src/ledger/entry.js.
+#}
+<div class="entry" id="entry" hidden
+     data-create="{% url 'ledger:transaction_create' %}"
+     data-update="{% url 'ledger:transaction_update' 0 %}"
+     data-delete="{% url 'ledger:transaction_delete' 0 %}"
+     data-rules="{% url 'ledger:recurring' %}">
+  <div class="entry__scrim" data-close></div>
+  <section class="entry__panel" role="dialog" aria-modal="true" aria-labelledby="entry-q" tabindex="-1">
+    <header class="entry__head">
+      <button type="button" class="entry__icon" data-back aria-label="Back">{% icon 'chevron-left' 22 %}</button>
+      <div class="entry__dots" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+      <button type="button" class="entry__icon" data-close aria-label="Close">{% icon 'x' 22 %}</button>
+    </header>
+    <div class="entry__summary" id="entry-summary"></div>
+
+    {# 1. Amount #}
+    <div class="entry__page" data-page="amount">
+      <div class="entry__types" role="radiogroup" aria-label="Type">
+        <button type="button" class="entry__type" data-type="expense" role="radio">Expense</button>
+        <button type="button" class="entry__type" data-type="income" role="radio">Income</button>
+      </div>
+      <p class="entry__q" id="entry-q">How much?</p>
+      <div class="entry__amount num" aria-live="polite"><span class="entry__cur">$</span><span id="entry-amount">0</span></div>
+      <div class="entry__numpad">
+        {% for k in "123456789" %}<button type="button" class="entry__key" data-key="{{ k }}">{{ k }}</button>{% endfor %}
+        <button type="button" class="entry__key" data-key=".">.</button>
+        <button type="button" class="entry__key" data-key="0">0</button>
+        <button type="button" class="entry__key entry__key--flat" data-key="back" aria-label="Delete digit">⌫</button>
+      </div>
+      <div class="entry__bar"><button type="button" class="bh-btn bh-btn--primary bh-btn--block" data-next="amount" disabled>Next</button></div>
+    </div>
+
+    {# 2. Title #}
+    <div class="entry__page" data-page="title" hidden>
+      <p class="entry__q" data-q-expense="What was it?" data-q-income="Where is it from?">What was it?</p>
+      <div class="entry__titlebox">
+        <input id="entry-title" class="entry__title" maxlength="200" autocomplete="off" autocapitalize="sentences"
+               enterkeyhint="next" placeholder="e.g. Chicken rice" aria-label="Title">
+        <button type="button" class="bh-btn bh-btn--primary bh-btn--sm" data-next="title">Next</button>
+      </div>
+      <p class="entry__hint" id="entry-title-hint">Pick one you used before to skip the category.</p>
+      <ul class="entry__suggest" id="entry-suggest" role="listbox" aria-label="Past titles"></ul>
+    </div>
+
+    {# 3. Category #}
+    <div class="entry__page" data-page="category" hidden>
+      <p class="entry__q" data-q-expense="What for?" data-q-income="Which category?">What for?</p>
+      <div class="entry__scroll">
+        <div class="entry__cats" id="entry-cats">
+          {% for c in cats %}
+            <button type="button" class="entry__cat" data-cat="{{ c.id }}" data-kind="{{ c.kind }}">
+              {% category_tile c %}
+              <span class="entry__cat-name">{{ c.name }}</span>
+            </button>
+          {% empty %}
+            <p class="small muted">No categories yet. <a href="{% url 'ledger:category_new' %}">Add a category</a> first.</p>
+          {% endfor %}
+        </div>
+        <p class="entry__label" id="entry-cats-back" hidden>Money back to</p>
+      </div>
+    </div>
+
+    {# 4. Review #}
+    <div class="entry__page" data-page="review" hidden>
+      <div class="entry__scroll">
+        <div class="entry__hero">
+          <button type="button" class="entry__hero-amount num" data-goto="amount"></button>
+          <button type="button" class="entry__hero-title" data-goto="title"></button>
+          <button type="button" class="entry__hero-cat" data-goto="category"></button>
+        </div>
+        <div class="entry__rows">
+          <button type="button" class="entry__row" data-open="date">{% icon 'calendar' 20 %}<span class="grow"><span class="entry__row-label">Date</span><span class="entry__row-value" id="entry-date-value"></span></span>{% icon 'chevron-right' 18 %}</button>
+          <button type="button" class="entry__row" data-open="month">{% icon 'chart' 20 %}<span class="grow"><span class="entry__row-label">Counts toward</span><span class="entry__row-value" id="entry-month-value"></span></span>{% icon 'chevron-right' 18 %}</button>
+          <button type="button" class="entry__row" data-open="note">{% icon 'note' 20 %}<span class="grow"><span class="entry__row-label">Note</span><span class="entry__row-value" id="entry-note-value"></span></span>{% icon 'chevron-right' 18 %}</button>
+          <button type="button" class="entry__row" data-open="repeat" id="entry-repeat-row">{% icon 'repeat' 20 %}<span class="grow"><span class="entry__row-label">Repeat</span><span class="entry__row-value" id="entry-repeat-value"></span></span>{% icon 'chevron-right' 18 %}</button>
+        </div>
+        <p class="note" id="entry-rule" hidden>Added by the recurring <a id="entry-rule-link" href="#"></a>. Changes here only affect this entry; edit the recurring one to change those still to come.</p>
+        <p class="form-error" id="entry-error" role="alert"></p>
+      </div>
+      <div class="entry__bar entry__bar--review">
+        <button type="button" class="bh-btn bh-btn--ghost bh-btn--danger" id="entry-delete" hidden>{% icon 'trash' 20 %} Delete</button>
+        <button type="button" class="bh-btn bh-btn--primary grow" id="entry-save">Add expense</button>
+      </div>
+    </div>
+
+    {# Review details, one page each #}
+    <div class="entry__page" data-page="date" hidden>
+      <p class="entry__q">When?</p>
+      <div class="entry__scroll">
+        <div class="entry__shortcuts">
+          <button type="button" class="bh-chip" data-day-ago="0">Today</button>
+          <button type="button" class="bh-chip" data-day-ago="1">Yesterday</button>
+          <button type="button" class="bh-chip" data-day-ago="2" id="entry-day-2"></button>
+        </div>
+        <div class="entry__cal">
+          <div class="entry__cal-head">
+            <button type="button" class="entry__icon" data-cal="-1" aria-label="Previous month">{% icon 'chevron-left' 20 %}</button>
+            <span id="entry-cal-title"></span>
+            <button type="button" class="entry__icon" data-cal="1" aria-label="Next month">{% icon 'chevron-right' 20 %}</button>
+          </div>
+          <div class="entry__cal-grid" id="entry-cal"></div>
+        </div>
+      </div>
+    </div>
+    <div class="entry__page" data-page="month" hidden>
+      <p class="entry__q">Which month does it count toward?</p>
+      <p class="entry__hint">For a bill that arrives after the month it's for.</p>
+      <div class="entry__scroll"><div class="entry__months" id="entry-months"></div></div>
+    </div>
+    <div class="entry__page" data-page="note" hidden>
+      <p class="entry__q">Note</p>
+      <textarea id="entry-note" class="textarea entry__note" rows="3" placeholder="Anything to remember about it" aria-label="Note"></textarea>
+      <div class="entry__bar entry__bar--inline"><button type="button" class="bh-btn bh-btn--primary bh-btn--block" data-done>Done</button></div>
+    </div>
+    <div class="entry__page" data-page="repeat" hidden>
+      <p class="entry__q">Repeat it?</p>
+      <p class="entry__hint">Burrow adds it again on the same day each time.</p>
+      <div class="entry__scroll entry__choices">
+        <button type="button" class="entry__choice" data-repeat="">Doesn't repeat</button>
+        <button type="button" class="entry__choice" data-repeat="week">Every week</button>
+        <button type="button" class="entry__choice" data-repeat="month">Every month</button>
+        <button type="button" class="entry__choice" data-repeat="year">Every year</button>
+      </div>
+    </div>
+  </section>
+</div>
+{{ entry_data|json_script:"ledger-entry" }}
