@@ -5,7 +5,7 @@
 {% block content %}
 <c-burrow.habitat kind="oak" mood="{% if cat.is_fund %}{% if balance < 0 %}worried{% else %}happy{% endif %}{% elif history.consistently_over %}worried{% else %}happy{% endif %}">
   <span class="bh-habitat__eyebrow"><a href="{% url 'ledger:settings' %}" style="color:inherit">Settings</a> · {{ cat.get_kind_display }}{% if cat.archived %} · archived{% endif %}</span>
-  <h1 class="page-title">{{ cat.name }}</h1>
+  <h1 class="page-title page-title--icon">{% category_tile cat %}{{ cat.name }}</h1>
   <p class="bh-habitat__sub">
     {% if cat.is_income %}{% money received_now %} this month{% elif cat.is_fund %}{% money balance %} saved · +{% money amount_now %} a month{% else %}{% money amount_now %} a month{% if history.months_counted %} · over in {{ history.months_over }} of {{ history.months_counted }} months{% endif %}{% endif %}
   </p>

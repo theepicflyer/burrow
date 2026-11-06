@@ -47,6 +47,9 @@ class Category(models.Model):
 
     name = models.CharField(_("Name"), max_length=80, unique=True)
     kind = models.CharField(_("Kind"), max_length=8, choices=Kind.choices, default=Kind.BUDGET)
+    icon = models.CharField(
+        _("Icon"), max_length=40, blank=True, help_text=_("Blank picks one from the name.")
+    )
     position = models.PositiveIntegerField(_("Position"), default=0)
     archived = models.BooleanField(_("Archived"), default=False)
     opening_balance = models.DecimalField(
@@ -81,6 +84,18 @@ class Category(models.Model):
     @property
     def is_income(self):
         return self.kind == self.Kind.INCOME
+
+    @property
+    def display_icon(self) -> str:
+        """The icon to draw: the one picked, else one that fits the name. "" means
+        draw the first letter (or, for a fund, Kacang's acorn)."""
+        from apps.ledger import icons
+
+        if self.icon == icons.LETTER:
+            return ""
+        if self.icon in icons.names():
+            return self.icon
+        return icons.guess(self.name)
 
     def amount_for(self, month: date) -> Decimal:
         """Budget (or fund top-up) for ``month``; 0 before the first amount."""

@@ -6,6 +6,7 @@ import { initEntry } from './ledger/entry.js';
 import { initToasts } from './ledger/toast.js';
 import { initCharts } from './ledger/charts.js';
 import { initTheme } from './ledger/theme.js';
+import { initIconPicker } from './ledger/icons.js';
 
 window.htmx = htmx;
 htmx.config.allowEval = false;
@@ -16,6 +17,7 @@ function boot() {
   initToasts();
   initEntry();
   initCharts(document);
+  initIconPicker();
 }
 
 document.body.addEventListener('htmx:afterSettle', (e) => initCharts(e.target));

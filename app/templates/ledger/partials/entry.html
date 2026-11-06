@@ -55,11 +55,7 @@
         <div class="entry__cats" id="entry-cats">
           {% for c in cats %}
             <button type="button" class="entry__cat" data-cat="{{ c.id }}" data-kind="{{ c.kind }}">
-              {% if c.is_fund %}
-                <span class="tile tile--fund"><img class="bh-trace" src="{% static 'img/burrow/traces/acorn.svg' %}" width="24" height="24" alt=""></span>
-              {% else %}
-                <span class="tile{% if c.is_income %} tile--in{% endif %}" aria-hidden="true">{{ c.name|first|upper }}</span>
-              {% endif %}
+              {% category_tile c %}
               <span class="entry__cat-name">{{ c.name }}</span>
             </button>
           {% empty %}

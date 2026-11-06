@@ -16,7 +16,7 @@
     </div>
     {% for r in budget_rows %}
       <a class="setting" href="{% url 'ledger:category' r.cat.id %}">
-        <span class="tile" aria-hidden="true">{{ r.cat.name|first|upper }}</span>
+        {% category_tile r.cat %}
         <span class="grow setting__title">{{ r.cat.name }}</span>
         <span class="setting__value">{% money r.amount %} a month</span>
       </a>
@@ -30,7 +30,7 @@
     <div class="bh-card__head"><h2 class="bh-card__title section-title" id="funds-title">Sinking funds</h2></div>
     {% for r in fund_rows %}
       <a class="setting" href="{% url 'ledger:category' r.cat.id %}">
-        <span class="tile tile--fund"><img class="bh-trace" src="{% static 'img/burrow/traces/acorn.svg' %}" width="26" height="26" alt=""></span>
+        {% category_tile r.cat %}
         <span class="grow"><span class="setting__title">{{ r.cat.name }}</span><br><span class="small muted">+{% money r.amount %} on the 1st of each month</span></span>
         <span class="setting__value {% if r.balance < 0 %}over-text{% endif %}">{% money r.balance %}</span>
       </a>
@@ -44,7 +44,7 @@
     <div class="bh-card__head"><h2 class="bh-card__title section-title" id="income-title">Income</h2></div>
     {% for r in income_rows %}
       <a class="setting" href="{% url 'ledger:category' r.cat.id %}">
-        <span class="tile tile--in" aria-hidden="true">{{ r.cat.name|first|upper }}</span>
+        {% category_tile r.cat %}
         <span class="grow setting__title">{{ r.cat.name }}</span>
         {% icon 'chevron-right' 20 %}
       </a>

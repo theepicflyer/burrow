@@ -84,10 +84,62 @@ def entry_flow(context):
         "request": request,
         "cats": cats,
         "entry_data": {
-            "cats": [{"id": c.id, "name": c.name, "kind": c.kind} for c in cats],
+            "cats": [{"id": c.id, "name": c.name, "kind": c.kind, "icon": c.display_icon} for c in cats],
+            "sprite": icon_sprite(),
             "titles": title_suggestions(),
             "today": timezone.localdate().isoformat(),
         },
+    }
+
+
+def icon_sprite() -> str:
+    from django.templatetags.static import static
+
+    return static("img/category-icons.svg")
+
+
+@register.simple_tag
+def category_icon(name, size=22):
+    """One icon from the category library."""
+    return format_html(
+        '<svg class="cat-icon" width="{s}" height="{s}" aria-hidden="true"><use href="{u}#i-{n}"></use></svg>',
+        s=size,
+        u=icon_sprite(),
+        n=name,
+    )
+
+
+@register.simple_tag
+def category_tile(cat, extra=""):
+    """The square tile for a category: its icon, else Kacang's acorn for a fund, else its first letter."""
+    from django.templatetags.static import static
+
+    kind = " tile--fund" if cat.is_fund else " tile--in" if cat.is_income else ""
+    css = f"tile{kind} {extra}".strip()
+    icon = cat.display_icon
+    if icon:
+        return format_html('<span class="{c}">{i}</span>', c=css, i=category_icon(icon))
+    if cat.is_fund:
+        return format_html(
+            '<span class="{c}"><img class="bh-trace" src="{s}" width="26" height="26" alt=""></span>',
+            c=css,
+            s=static("img/burrow/traces/acorn.svg"),
+        )
+    return format_html('<span class="{c}" aria-hidden="true">{l}</span>', c=css, l=(cat.name[:1] or "?").upper())
+
+
+@register.inclusion_tag("ledger/partials/icon_picker.html")
+def icon_picker(form):
+    from apps.ledger import icons
+
+    lib = icons.library()
+    errors = form["icon"].errors
+    return {
+        "groups": lib["groups"],
+        "match": lib["match"],
+        "value": form["icon"].value() or "",
+        "error": errors[0] if errors else "",
+        "sprite": icon_sprite(),
     }
 
 

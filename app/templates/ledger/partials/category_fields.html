@@ -15,6 +15,7 @@
   </div>
   <span class="field__hint">A budget is what you plan to spend each month. A fund saves a set amount every month and you spend from what has built up. Income is money coming in, such as pay.</span>
 </div>
+{% icon_picker form %}
 <div class="form-grid form-grid--2 budget-only">
   <div class="field {% if form.amount.errors %}has-error{% endif %}">
     <label for="id_amount">Monthly budget or top-up</label>

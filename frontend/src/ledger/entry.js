@@ -13,6 +13,7 @@ const parseDay = (s) => { const [y, m, d] = s.split('-').map(Number); return new
 const addMonths = (d, n) => new Date(d.getFullYear(), d.getMonth() + n, 1);
 const monthName = (d, long) => d.toLocaleDateString(undefined, { month: long ? 'long' : 'short' });
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const iconSvg = (sprite, name, size = 18) => (name ? `<svg class="cat-icon" width="${size}" height="${size}" aria-hidden="true"><use href="${sprite}#i-${name}"></use></svg>` : '');
 const money = (v) => `$${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export function initEntry() {
@@ -117,7 +118,7 @@ export function initEntry() {
   function renderSuggest() {
     const list = suggestions();
     el.suggest.innerHTML = list.map((m, i) =>
-      `<li><button type="button" data-suggest="${i}"><span>${esc(m.t)}</span><span class="entry__suggest-cat">${esc(cats.get(String(m.c))?.name || '')}</span></button></li>`).join('');
+      `<li><button type="button" data-suggest="${i}"><span>${esc(m.t)}</span><span class="entry__suggest-cat">${iconSvg(data.sprite, cats.get(String(m.c))?.icon)}${esc(cats.get(String(m.c))?.name || '')}</span></button></li>`).join('');
     el.suggest.querySelectorAll('[data-suggest]').forEach((b) => {
       // pointerdown keeps the keyboard from bouncing before the page changes
       b.addEventListener('pointerdown', (e) => e.preventDefault());
@@ -168,7 +169,7 @@ export function initEntry() {
     el.heroTitle.textContent = s.title || cats.get(String(s.category))?.name || 'Add a title';
     el.heroTitle.classList.toggle('muted', !s.title);
     const cat = cats.get(String(s.category));
-    el.heroCat.textContent = cat ? cat.name : 'Pick a category';
+    el.heroCat.innerHTML = cat ? `${iconSvg(data.sprite, cat.icon)}${esc(cat.name)}` : 'Pick a category';
     el.heroCat.classList.toggle('is-missing', !cat);
     el.dateValue.textContent = dayLabel(s.date);
     const m = parseDay(`${s.month}-01`);

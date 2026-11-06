@@ -73,7 +73,15 @@ class CategoryForm(forms.ModelForm):
 
     class Meta:
         model = Category
-        fields = ["name", "kind", "opening_balance", "target", "archived"]
+        fields = ["name", "kind", "icon", "opening_balance", "target", "archived"]
+
+    def clean_icon(self):
+        from apps.ledger import icons
+
+        icon = self.cleaned_data.get("icon") or ""
+        if icon and icon != icons.LETTER and icon not in icons.names():
+            raise forms.ValidationError(_("Pick an icon from the list."))
+        return icon
 
     def clean_name(self):
         name = self.cleaned_data["name"].strip()

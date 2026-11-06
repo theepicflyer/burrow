@@ -1,10 +1,6 @@
 {% load static ledger %}
 <button type="button" class="spend" data-spend="{{ t|spend_json }}">
-  {% if t.category.is_fund %}
-    <span class="tile tile--fund"><img class="bh-trace" src="{% static 'img/burrow/traces/acorn.svg' %}" width="26" height="26" alt=""></span>
-  {% else %}
-    <span class="tile{% if t.is_income %} tile--in{% endif %}" aria-hidden="true">{{ t.category.name|first|upper }}</span>
-  {% endif %}
+  {% if t.is_income and not t.category.is_income %}{% category_tile t.category "tile--in" %}{% else %}{% category_tile t.category %}{% endif %}
   <span class="spend__text">
     <span class="spend__title">{{ t.title }}</span>
     <span class="spend__sub">
