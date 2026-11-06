@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from apps.ledger.models import Category, LedgerSettings, MonthlyAmount, Recurring, Transaction
+from apps.ledger.models import Category, MonthlyAmount, Recurring, Transaction
 
 
 class MonthlyAmountInline(admin.TabularInline):
@@ -17,15 +17,13 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Transaction)
 class TransactionAdmin(admin.ModelAdmin):
-    list_display = ("date", "month", "title", "amount", "category", "created_by")
-    list_filter = ("category", "month")
+    list_display = ("date", "month", "type", "title", "amount", "category", "created_by")
+    list_filter = ("type", "category", "month")
     search_fields = ("title", "note")
     date_hierarchy = "date"
 
 
 @admin.register(Recurring)
 class RecurringAdmin(admin.ModelAdmin):
-    list_display = ("title", "amount", "category", "every", "unit", "start_date", "paused", "last_generated")
+    list_display = ("title", "type", "amount", "category", "every", "unit", "start_date", "paused", "last_generated")
 
-
-admin.site.register(LedgerSettings)

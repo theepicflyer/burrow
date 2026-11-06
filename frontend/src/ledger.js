@@ -2,7 +2,7 @@ import 'vite/modulepreload-polyfill';
 import './styles/ledger.css';
 import htmx from 'htmx.org';
 
-import { initSheet } from './ledger/sheet.js';
+import { initEntry } from './ledger/entry.js';
 import { initToasts } from './ledger/toast.js';
 import { initCharts } from './ledger/charts.js';
 import { initTheme } from './ledger/theme.js';
@@ -14,7 +14,7 @@ htmx.config.historyCacheSize = 0;
 function boot() {
   initTheme();
   initToasts();
-  initSheet();
+  initEntry();
   initCharts(document);
 }
 

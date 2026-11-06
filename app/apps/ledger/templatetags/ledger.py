@@ -5,7 +5,6 @@ from django import template
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
-from apps.ledger.models import LedgerSettings
 
 register = template.Library()
 
@@ -52,44 +51,27 @@ def icon(name, size=24, label=""):
     )
 
 
-def _symbol(context=None):
-    """The currency symbol, loaded once per request."""
-    request = context.get("request") if context is not None else None
-    if request is not None:
-        if not hasattr(request, "_ledger_currency"):
-            request._ledger_currency = LedgerSettings.load().currency
-        return request._ledger_currency
-    return LedgerSettings.load().currency
-
-
-def format_money(value, symbol=None, signed=False):
+def format_money(value, signed=False, type=None):
+    """``$1,234.50``. ``signed`` adds ``−`` for an expense and ``+`` for income
+    (``type`` says which; without it a negative value counts as income)."""
     if value is None or value == "":
         return ""
     value = Decimal(value).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    symbol = _symbol() if symbol is None else symbol
-    body = f"{abs(value):,.2f}"
-    text = f"{symbol} {body}" if symbol else body
-    if value < 0:
-        return f"+{text}" if signed else f"−{text}"
-    if signed and value > 0:
-        return f"−{text}"
-    return text
+    text = f"${abs(value):,.2f}"
+    if signed:
+        income = type == "income" if type else value < 0
+        return f"+{text}" if income else f"\u2212{text}"
+    return f"\u2212{text}" if value < 0 else text
 
 
-@register.simple_tag(takes_context=True)
-def money(context, value, signed=False):
-    """``S$ 1,234.50``. With ``signed`` (spend rows) a spend shows ``−`` and money back ``+``."""
-    return format_money(value, _symbol(context), signed)
+@register.simple_tag
+def money(value, signed=False, type=None):
+    return format_money(value, signed, type)
 
 
-@register.simple_tag(takes_context=True)
-def currency(context):
-    return _symbol(context)
-
-
-@register.inclusion_tag("ledger/partials/sheet.html", takes_context=True)
-def entry_sheet(context):
-    """The add/edit sheet, with categories ordered by recent use and past titles."""
+@register.inclusion_tag("ledger/partials/entry.html", takes_context=True)
+def entry_flow(context):
+    """The add/edit flow, with categories ordered by recent use and past titles."""
     from django.utils import timezone
 
     from apps.ledger.services import categories_for_entry, title_suggestions
@@ -100,7 +82,6 @@ def entry_sheet(context):
     cats = categories_for_entry()
     return {
         "request": request,
-        "currency": _symbol(context),
         "cats": cats,
         "entry_data": {
             "cats": [{"id": c.id, "name": c.name, "kind": c.kind} for c in cats],

@@ -36,7 +36,7 @@ async function lib() {
   return ChartLib;
 }
 
-const money = (symbol) => (v) => `${symbol} ${Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+const money = (symbol) => (v) => `${v < 0 ? '\u2212' : ''}${symbol}${Math.abs(Number(v)).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
 function budgetVsSpent(data, c, symbol) {
   // Bars: spent (tomato when over, faded while the month is running). Line: budget.
@@ -105,7 +105,38 @@ function fundHistory(data, c, symbol) {
   };
 }
 
-const KINDS = { budget: budgetVsSpent, funds: fundLines, fund: fundHistory };
+function inOut(data, c, symbol) {
+  // Income against everything spent (budgets and funds), faded while the month is running.
+  const partial = data.partial || data.income.map(() => false);
+  return {
+    type: 'bar',
+    data: {
+      labels: data.labels,
+      datasets: [
+        { label: 'Income', data: data.income, backgroundColor: data.income.map((_, i) => alpha(c.mint, partial[i] ? 0.45 : 1)) },
+        { label: 'Spent', data: data.out, backgroundColor: data.out.map((_, i) => alpha(c.bark, partial[i] ? 0.45 : 1)) },
+      ],
+    },
+    options: {
+      interaction: { mode: 'index', intersect: false },
+      scales: { y: { beginAtZero: true, ticks: { callback: money(symbol) } }, x: { grid: { display: false } } },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${money(symbol)(ctx.parsed.y)}` } } },
+    },
+  };
+}
+
+function received(data, c, symbol) {
+  return {
+    type: 'bar',
+    data: { labels: data.labels, datasets: [{ label: 'Received', data: data.received, backgroundColor: c.mint }] },
+    options: {
+      scales: { y: { beginAtZero: true, ticks: { callback: money(symbol) } }, x: { grid: { display: false } } },
+      plugins: { legend: { display: false } },
+    },
+  };
+}
+
+const KINDS = { budget: budgetVsSpent, funds: fundLines, fund: fundHistory, inout: inOut, income: received };
 
 export async function initCharts(root) {
   const canvases = (root || document).querySelectorAll('canvas[data-chart]');
@@ -117,7 +148,7 @@ export async function initCharts(root) {
     const build = KINDS[canvas.dataset.chart];
     if (!src || !build) return;
     Chart.getChart(canvas)?.destroy();
-    const symbol = document.body.dataset.currency || '$';
+    const symbol = "$";
     new Chart(canvas, build(JSON.parse(src.textContent), c, symbol));
   });
 }

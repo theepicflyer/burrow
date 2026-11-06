@@ -6,7 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from apps.api.models import APIToken
-from apps.ledger.models import Category, LedgerSettings, Recurring, Transaction
+from apps.ledger.models import Category, Recurring, Transaction
 from apps.ledger.months import month_of
 from apps.users.models import User
 
@@ -22,7 +22,7 @@ class LedgerViewTests(TestCase):
         self.food.set_amount(D("400"), self.month)
         self.fund = Category.objects.create(name="Travel", kind=Category.Kind.FUND)
         self.fund.set_amount(D("200"), self.month)
-        LedgerSettings.objects.create(currency="S$")
+        self.salary = Category.objects.create(name="Salary", kind=Category.Kind.INCOME)
 
     def test_pages_need_login(self):
         self.client.logout()
@@ -37,8 +37,8 @@ class LedgerViewTests(TestCase):
         for name, args, query in [
             ("ledger:home", [], ""),
             ("ledger:home", [], "?month=2025-01"),
-            ("ledger:spends", [], ""),
-            ("ledger:spends", [], f"?q=lun&month={self.month:%Y-%m}&category={self.food.id}"),
+            ("ledger:history", [], ""),
+            ("ledger:history", [], f"?q=lun&month={self.month:%Y-%m}&category={self.food.id}"),
             ("ledger:trends", [], ""),
             ("ledger:trends", [], "?months=6&end=2026-01"),
             ("ledger:category", [self.food.id], ""),
@@ -49,36 +49,52 @@ class LedgerViewTests(TestCase):
             ("ledger:recurring", [], ""),
             ("ledger:recurring_new", [], ""),
             ("ledger:recurring_edit", [rule.id], ""),
-            ("ledger:spend_json", [t.id], ""),
+            ("ledger:transaction_json", [t.id], ""),
         ]:
             with self.subTest(name=name, query=query):
                 resp = self.client.get(reverse(name, args=args) + query)
                 self.assertEqual(resp.status_code, 200)
         home = self.client.get(reverse("ledger:home"))
-        self.assertContains(home, "S$ 387.50 left")
+        self.assertContains(home, "$387.50 left")
         self.assertContains(home, 'id="ledger-entry"')
+        self.assertContains(home, 'id="entry"')
 
-    def test_add_spend(self):
-        resp = self.client.post(reverse("ledger:spend_create"), {"amount": "8+4.5", "title": "", "category": self.food.id})
+    def test_add_expense(self):
+        resp = self.client.post(reverse("ledger:transaction_create"), {"amount": "12.50", "title": "", "category": self.food.id})
         self.assertEqual(resp.status_code, 200)
         body = resp.json()
         self.assertTrue(body["ok"])
         t = Transaction.objects.get()
-        self.assertEqual((t.amount, t.title, t.date, t.month), (D("12.50"), "Food", self.today, self.month))
+        self.assertEqual((t.type, t.amount, t.title, t.date, t.month), ("expense", D("12.50"), "Food", self.today, self.month))
         self.assertEqual(t.created_by, self.user)
-        self.assertIn("S$ 12.50", body["toast"])
-        self.assertEqual(body["undo"], reverse("ledger:spend_delete", args=[t.id]))
+        self.assertIn("\u2212$12.50", body["toast"])
+        self.assertEqual(body["undo"], reverse("ledger:transaction_delete", args=[t.id]))
 
-    def test_add_refund_for_an_earlier_month(self):
+    def test_add_money_back_for_an_earlier_month(self):
         self.client.post(
-            reverse("ledger:spend_create"),
-            {"amount": "20", "refund": "on", "title": "Return", "category": self.food.id, "date": "2026-06-10", "month": "2026-05"},
+            reverse("ledger:transaction_create"),
+            {"type": "income", "amount": "20", "title": "Return", "category": self.food.id, "date": "2026-06-10", "month": "2026-05"},
         )
         t = Transaction.objects.get()
-        self.assertEqual((t.amount, t.date, t.month), (D("-20.00"), date(2026, 6, 10), date(2026, 5, 1)))
+        self.assertEqual((t.type, t.amount, t.date, t.month), ("income", D("20.00"), date(2026, 6, 10), date(2026, 5, 1)))
+
+    def test_add_income(self):
+        resp = self.client.post(reverse("ledger:transaction_create"), {"type": "income", "amount": "4200", "title": "Pay", "category": self.salary.id})
+        self.assertTrue(resp.json()["ok"])
+        self.assertIn("+$4,200.00", resp.json()["toast"])
+        home = self.client.get(reverse("ledger:home"))
+        self.assertContains(home, "In and out")
+        self.assertContains(home, "$4,200.00")
+        income_only = self.client.get(reverse("ledger:history") + "?type=income")
+        self.assertContains(income_only, "Pay")
+
+    def test_expense_cannot_go_to_an_income_category(self):
+        resp = self.client.post(reverse("ledger:transaction_create"), {"type": "expense", "amount": "5", "category": self.salary.id})
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("category", resp.json()["errors"])
 
     def test_add_spend_errors(self):
-        resp = self.client.post(reverse("ledger:spend_create"), {"amount": "0", "title": "x"})
+        resp = self.client.post(reverse("ledger:transaction_create"), {"amount": "0", "title": "x"})
         self.assertEqual(resp.status_code, 400)
         errors = resp.json()["errors"]
         self.assertIn("amount", errors)
@@ -87,7 +103,7 @@ class LedgerViewTests(TestCase):
 
     def test_repeat_makes_a_rule_that_continues_after_this_entry(self):
         self.client.post(
-            reverse("ledger:spend_create"),
+            reverse("ledger:transaction_create"),
             {"amount": "15", "title": "Music", "category": self.food.id, "date": "2026-01-15", "repeat": "month"},
         )
         rule = Recurring.objects.get()
@@ -99,18 +115,18 @@ class LedgerViewTests(TestCase):
     def test_edit_and_delete_spend(self):
         t = Transaction.objects.create(category=self.food, amount=D("10"), title="Lunch", date=self.today, month=self.today, created_by=self.other)
         resp = self.client.post(
-            reverse("ledger:spend_update", args=[t.id]), {"amount": "11", "title": "Lunch", "category": self.fund.id, "date": self.today.isoformat()}
+            reverse("ledger:transaction_update", args=[t.id]), {"type": "expense", "amount": "11", "title": "Lunch", "category": self.fund.id, "date": self.today.isoformat()}
         )
         self.assertTrue(resp.json()["ok"])
         t.refresh_from_db()
         self.assertEqual((t.amount, t.category, t.created_by), (D("11.00"), self.fund, self.other))
-        resp = self.client.post(reverse("ledger:spend_delete", args=[t.id]))
+        resp = self.client.post(reverse("ledger:transaction_delete", args=[t.id]))
         self.assertEqual(resp.json()["spend"]["title"], "Lunch")
         self.assertFalse(Transaction.objects.exists())
 
     def test_everyone_sees_the_shared_ledger(self):
         Transaction.objects.create(category=self.food, amount=D("10"), title="Sam's lunch", date=self.today, month=self.today, created_by=self.other)
-        self.assertContains(self.client.get(reverse("ledger:spends")), "Sam&#x27;s lunch")
+        self.assertContains(self.client.get(reverse("ledger:history")), "Sam&#x27;s lunch")
 
     def test_budget_editor_applies_from_a_month_on(self):
         last = month_of(self.month - timedelta(days=1))

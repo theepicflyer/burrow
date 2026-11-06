@@ -24,7 +24,7 @@
           <span class="small muted">{% if r.cat.is_fund %}Fund top-up{% else %}Budget{% endif %}</span>
           {% if r.error %}<br><span class="field__error">{{ r.error }}</span>{% endif %}
         </span>
-        <span class="input input--affix">{% currency %}<input name="amount_{{ r.cat.id }}" inputmode="decimal" value="{{ r.amount|floatformat:2 }}"></span>
+        <span class="input input--affix">$<input name="amount_{{ r.cat.id }}" inputmode="decimal" value="{{ r.amount|floatformat:2 }}"></span>
       </label>
     {% endfor %}
   </div>

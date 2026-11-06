@@ -14,13 +14,22 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from django.db import transaction as db_transaction
-from django.db.models import Count, Max, Sum
+from django.db.models import Case, Count, DecimalField, F, Max, Sum, When
 from django.utils import timezone
 
-from apps.ledger.models import Category, MonthlyAmount, Recurring, Transaction
+from apps.ledger.models import Category, MonthlyAmount, Recurring, Transaction, Type
 from apps.ledger.months import add_months, month_of, month_range
 
 ZERO = Decimal("0")
+
+
+def net_amount():
+    """Net spend of a transaction row: the amount for an expense, minus it for income."""
+    return Case(
+        When(type=Type.INCOME, then=-F("amount")),
+        default=F("amount"),
+        output_field=DecimalField(max_digits=14, decimal_places=2),
+    )
 
 
 class Book:
@@ -36,7 +45,10 @@ class Book:
             self._amounts[cat_id].append(amount)
         self._spent: dict[tuple[int, date], Decimal] = {}
         self._spent_by_cat: dict[int, list[tuple[date, Decimal]]] = defaultdict(list)
-        for row in Transaction.objects.values("category_id", "month").annotate(total=Sum("amount")).order_by("month"):
+        # Net spend per (category, month). For an income category it is negative:
+        # ``received`` flips the sign.
+        rows = Transaction.objects.values("category_id", "month").annotate(total=Sum(net_amount())).order_by("month")
+        for row in rows:
             self._spent[(row["category_id"], row["month"])] = row["total"]
             self._spent_by_cat[row["category_id"]].append((row["month"], row["total"]))
 
@@ -49,6 +61,9 @@ class Book:
 
     def spent(self, cat_id: int, month: date) -> Decimal:
         return self._spent.get((cat_id, month), ZERO)
+
+    def received(self, cat_id: int, month: date) -> Decimal:
+        return -self.spent(cat_id, month)
 
     def first_month(self, cat_id: int) -> date | None:
         starts = self._starts.get(cat_id)
@@ -112,10 +127,17 @@ class FundLine:
 
 
 @dataclass
+class IncomeLine:
+    category: Category
+    received: Decimal
+
+
+@dataclass
 class MonthStatus:
     month: date
     budgets: list[BudgetLine]
     funds: list[FundLine]
+    incomes: list[IncomeLine] = field(default_factory=list)
     days_left: int | None = None  # set for the current month only
     elapsed: float | None = None  # share of the month gone, current month only
 
@@ -144,6 +166,19 @@ class MonthStatus:
         return sum((f.spent for f in self.funds), ZERO)
 
     @property
+    def income(self) -> Decimal:
+        return sum((i.received for i in self.incomes), ZERO)
+
+    @property
+    def out(self) -> Decimal:
+        """Everything spent: budgets and funds, net of money back."""
+        return self.total_spent + self.fund_spent
+
+    @property
+    def net(self) -> Decimal:
+        return self.income - self.out
+
+    @property
     def leaves(self) -> int:
         """0-26 leaves for the wreath."""
         if self.total_budget <= 0:
@@ -162,18 +197,21 @@ def month_status(month: date, book: Book | None = None, today: date | None = Non
     book = book or Book()
     month = month_of(month)
     today = today or timezone.localdate()
-    budgets, funds = [], []
+    budgets, funds, incomes = [], [], []
     for cat in book.categories:
         spent = book.spent(cat.id, month)
         if cat.archived and not spent:
             continue
-        if cat.is_fund:
+        if cat.is_income:
+            if spent or not cat.archived:
+                incomes.append(IncomeLine(cat, -spent))
+        elif cat.is_fund:
             funds.append(FundLine(cat, book.amount(cat.id, month), spent, book.fund_balance(cat, month)))
         else:
             budget = book.amount(cat.id, month)
             if budget or spent or not cat.archived:
                 budgets.append(BudgetLine(cat, budget, spent))
-    status = MonthStatus(month, budgets, funds)
+    status = MonthStatus(month, budgets, funds, incomes)
     if month == month_of(today):
         days = calendar.monthrange(month.year, month.month)[1]
         status.days_left = days - today.day
@@ -284,6 +322,20 @@ class FundTrend:
 
 
 @dataclass
+class Flow:
+    """Money in and out in one month. ``out`` is budgets and funds, net of money back."""
+
+    month: date
+    income: Decimal
+    out: Decimal
+    partial: bool = False
+
+    @property
+    def net(self) -> Decimal:
+        return self.income - self.out
+
+
+@dataclass
 class Analysis:
     months: list[date]
     categories: list[CategoryTrend]
@@ -291,6 +343,26 @@ class Analysis:
     funds: list[FundTrend]
     current: date | None = None
     flagged: list[CategoryTrend] = field(default_factory=list)
+    flows: list[Flow] = field(default_factory=list)
+
+    def _avg(self, values: list[Decimal]) -> Decimal:
+        return (sum(values, ZERO) / len(values)).quantize(Decimal("0.01")) if values else ZERO
+
+    @property
+    def complete_flows(self) -> list[Flow]:
+        return [f for f in self.flows if not f.partial and (f.income or f.out)]
+
+    @property
+    def avg_income(self) -> Decimal:
+        return self._avg([f.income for f in self.complete_flows])
+
+    @property
+    def avg_out(self) -> Decimal:
+        return self._avg([f.out for f in self.complete_flows])
+
+    @property
+    def avg_net(self) -> Decimal:
+        return self._avg([f.net for f in self.complete_flows])
 
     @property
     def complete_totals(self) -> list[Cell]:
@@ -328,7 +400,7 @@ def analysis(end_month: date, months: int = 12, today: date | None = None) -> An
 
     trends = []
     for cat in book.categories:
-        if cat.is_fund:
+        if cat.is_fund or cat.is_income:
             continue
         if cat.archived and not book.has_activity(cat.id, span):
             continue
@@ -361,6 +433,10 @@ def analysis(end_month: date, months: int = 12, today: date | None = None) -> An
     trends.sort(key=lambda t: (-t.months_over, -(t.avg_percent or 0), t.category.name))
     result = Analysis(span, trends, totals, funds, current if current in span else None)
     result.flagged = [t for t in trends if t.consistently_over]
+    for m in span:
+        income = sum((book.received(c.id, m) for c in book.categories if c.is_income), ZERO)
+        out = sum((book.spent(c.id, m) for c in book.categories if not c.is_income), ZERO)
+        result.flows.append(Flow(m, income, out, partial=m >= current))
     return result
 
 
@@ -370,6 +446,8 @@ def category_history(cat: Category, end_month: date, months: int = 12, today: da
     current = month_of(today)
     span = month_range(add_months(end_month, -(months - 1)), end_month)
     book = Book()
+    if cat.is_income:
+        return {"months": span, "received": [(m, book.received(cat.id, m)) for m in span]}
     if cat.is_fund:
         return {
             "months": span,
@@ -387,7 +465,8 @@ def category_history(cat: Category, end_month: date, months: int = 12, today: da
 
 
 def categories_for_entry(days: int = 90) -> list[Category]:
-    """Active categories, most used in the last ``days`` first, then by name."""
+    """Active categories, most used in the last ``days`` first, then by name. The entry
+    flow shows income categories first when entering income."""
     since = timezone.localdate() - timedelta(days=days)
     counts = dict(
         Transaction.objects.filter(date__gte=since)
@@ -396,20 +475,24 @@ def categories_for_entry(days: int = 90) -> list[Category]:
         .values_list("category_id", "n")
     )
     cats = list(Category.objects.filter(archived=False))
-    cats.sort(key=lambda c: (-counts.get(c.id, 0), c.is_fund, c.name.lower()))
+    cats.sort(key=lambda c: (-counts.get(c.id, 0), c.kind != Category.Kind.BUDGET, c.name.lower()))
     return cats
 
 
 def title_suggestions(limit: int = 300) -> list[dict]:
-    """Recent distinct titles with the category last used for each, newest first."""
+    """Recent distinct titles with the category and type last used for each, newest first."""
     rows = (
         Transaction.objects.values("title")
         .annotate(last=Max("id"))
         .order_by("-last")[:limit]
     )
     last_ids = [r["last"] for r in rows]
-    by_id = dict(Transaction.objects.filter(id__in=last_ids).values_list("id", "category_id"))
-    return [{"t": r["title"], "c": by_id.get(r["last"])} for r in rows]
+    by_id = {i: (c, y) for i, c, y in Transaction.objects.filter(id__in=last_ids).values_list("id", "category_id", "type")}
+    out = []
+    for r in rows:
+        cat, kind = by_id.get(r["last"], (None, Type.EXPENSE))
+        out.append({"t": r["title"], "c": cat, "y": kind})
+    return out
 
 
 # --------------------------------------------------------------------------- recurring
@@ -426,6 +509,7 @@ def generate_due(today: date | None = None) -> int:
             dates = rule.dates_between(after, today)
             for d in dates:
                 Transaction.objects.create(
+                    type=rule.type,
                     amount=rule.amount,
                     title=rule.title,
                     category=rule.category,

@@ -25,7 +25,7 @@
 </div>
 
 {% if not a.categories and not a.funds %}
-  <div class="bh-card"><c-ledger.empty who="" title="Nothing to compare yet">Trends appear once you have budgets and a month of spends.</c-ledger.empty></div>
+  <div class="bh-card"><c-ledger.empty who="" title="Nothing to compare yet">Trends appear once you have budgets and a month of transactions.</c-ledger.empty></div>
 {% else %}
 <div class="cols">
   <section class="bh-card span-2" aria-labelledby="kpi-title">
@@ -114,7 +114,7 @@
               <td class="heat__cat"><a href="{% url 'ledger:category' t.category.id %}">{{ t.category.name }}</a></td>
               {% for c in t.cells %}
                 <td class="t-{{ c.tone }}{% if c.partial %} is-partial{% endif %}" title="{{ c.month|date:'F Y' }}: {% money c.spent %} of {% money c.budget %}">
-                  <a href="{% url 'ledger:spends' %}?category={{ t.category.id }}&month={{ c.month|date:'Y-m' }}">{% if c.percent is not None %}{{ c.percent }}%{% elif c.spent %}{% money c.spent %}{% else %}–{% endif %}</a>
+                  <a href="{% url 'ledger:history' %}?category={{ t.category.id }}&month={{ c.month|date:'Y-m' }}">{% if c.percent is not None %}{{ c.percent }}%{% elif c.spent %}{% money c.spent %}{% else %}–{% endif %}</a>
                 </td>
               {% endfor %}
               <td class="heat__sum {% if t.consistently_over %}over-text{% endif %}">{{ t.months_over }}/{{ t.months_counted }}</td>
@@ -131,6 +131,21 @@
       </table>
     </div>
   </section>
+
+  {% if a.complete_flows or a.avg_income %}
+  <section class="bh-card span-2" aria-labelledby="flow-title">
+    <div class="bh-card__head">
+      <h2 class="bh-card__title section-title" id="flow-title">In and out</h2>
+      <span class="legend"><span class="l-spent">Income</span><span class="l-bark">Spent</span></span>
+    </div>
+    <div class="kpis" style="margin-bottom:12px">
+      <div class="kpi"><span class="kpi__label">Average income</span><span class="kpi__value in-text">{% money a.avg_income %}</span><span class="kpi__sub">a month</span></div>
+      <div class="kpi"><span class="kpi__label">Average spent</span><span class="kpi__value">{% money a.avg_out %}</span><span class="kpi__sub">budgets and funds</span></div>
+      <div class="kpi"><span class="kpi__label">Average {% if a.avg_net < 0 %}short{% else %}left over{% endif %}</span><span class="kpi__value{% if a.avg_net < 0 %} over-text{% endif %}">{% money a.avg_net %}</span><span class="kpi__sub">a month</span></div>
+    </div>
+    <div class="chart-box chart-box--sm"><canvas data-chart="inout" data-src="trend-data" aria-label="Income and spending by month" role="img"></canvas></div>
+  </section>
+  {% endif %}
 
   {% if a.funds %}
   <section class="bh-card span-2" aria-labelledby="funds-title">

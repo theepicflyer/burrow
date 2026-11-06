@@ -18,8 +18,8 @@ from django.views.decorators.http import require_POST
 
 from apps.api.models import APIToken
 from apps.ledger import services
-from apps.ledger.forms import CategoryForm, LedgerSettingsForm, RecurringForm, SpendForm
-from apps.ledger.models import Category, LedgerSettings, MonthlyAmount, Recurring, Transaction
+from apps.ledger.forms import CategoryForm, RecurringForm, TransactionForm
+from apps.ledger.models import Category, MonthlyAmount, Recurring, Transaction, Type
 from apps.ledger.months import add_months, month_of, parse_month
 from apps.ledger.templatetags.ledger import format_money
 
@@ -57,43 +57,49 @@ def home(request):
     )
 
 
-def _spend_filters(request):
+def _filters(request):
     q = request.GET.get("q", "").strip()
     month = request.GET.get("month", "")
     category = request.GET.get("category", "")
+    kind = request.GET.get("type", "")
     qs = Transaction.objects.select_related("category", "recurring", "created_by")
+    if kind in Type.values:
+        qs = qs.filter(type=kind)
+    else:
+        kind = ""
     if q:
         qs = qs.filter(Q(title__icontains=q) | Q(note__icontains=q))
     if month:
         qs = qs.filter(month=parse_month(month, _today()))
     if category.isdigit():
         qs = qs.filter(category_id=int(category))
-    return qs, {"q": q, "month": month, "category": category}
+    return qs, {"q": q, "month": month, "category": category, "type": kind}
 
 
 @login_required
-def spends(request):
+def history(request):
     services.generate_due()
-    qs, filters = _spend_filters(request)
+    qs, filters = _filters(request)
     page = Paginator(qs, 60).get_page(request.GET.get("page"))
     days = [(d, list(rows)) for d, rows in groupby(page.object_list, key=lambda t: t.date)]
-    total = qs.aggregate(total=Sum("amount"))["total"] or Decimal("0")
+    sums = dict(qs.order_by().values_list("type").annotate(total=Sum("amount")))
     ctx = {
         "page": page,
         "days": days,
         "filters": filters,
-        "total": total,
+        "spent": sums.get(Type.EXPENSE, Decimal("0")),
+        "received": sums.get(Type.INCOME, Decimal("0")),
         "count": page.paginator.count,
         "filtered": any(filters.values()),
         "categories": Category.objects.all(),
         "months": [add_months(month_of(_today()), -i) for i in range(-1, 24)],
         "today": _today(),
         "this_year": _today().year,
-        "nav": "spends",
+        "nav": "history",
     }
     if request.headers.get("HX-Request") and request.GET.get("page"):
-        return render(request, "ledger/fragments/spend_days.html", ctx)
-    return render(request, "ledger/spends.html", ctx)
+        return render(request, "ledger/fragments/transaction_days.html", ctx)
+    return render(request, "ledger/history.html", ctx)
 
 
 @login_required
@@ -113,6 +119,8 @@ def trends(request):
         "funds": [
             {"name": f.category.name, "values": [float(b) for _m, b in f.balances]} for f in result.funds
         ],
+        "income": [float(f.income) for f in result.flows],
+        "out": [float(f.out) for f in result.flows],
     }
     return render(
         request,
@@ -135,7 +143,12 @@ def category_detail(request, pk):
     today = _today()
     month = month_of(today)
     history = services.category_history(cat, month, 12, today=today)
-    if cat.is_fund:
+    if cat.is_income:
+        chart = {
+            "labels": [m.strftime("%b %y") for m in history["months"]],
+            "received": [float(v) for _m, v in history["received"]],
+        }
+    elif cat.is_fund:
         chart = {
             "labels": [m.strftime("%b %y") for m in history["months"]],
             "balance": [float(v) for _m, v in history["balances"]],
@@ -157,6 +170,7 @@ def category_detail(request, pk):
             "chart": chart,
             "recent": recent,
             "balance": services.Book().fund_balance(cat, month) if cat.is_fund else None,
+            "received_now": services.Book().received(cat.id, month) if cat.is_income else None,
             "amount_now": cat.amount_for(month),
             "amounts": cat.amounts.order_by("-start_month"),
             "form": CategoryForm(
@@ -168,14 +182,14 @@ def category_detail(request, pk):
     )
 
 
-# --------------------------------------------------------------------------- spends (JSON, used by the entry sheet)
+# --------------------------------------------------------------------------- transactions (JSON, used by the entry flow)
 
 
 @login_required
 @require_POST
-def spend_save(request, pk=None):
+def transaction_save(request, pk=None):
     txn = get_object_or_404(Transaction, pk=pk) if pk else Transaction(created_by=request.user)
-    form = SpendForm(request.POST)
+    form = TransactionForm(request.POST)
     if not form.is_valid():
         return JsonResponse({"ok": False, "errors": {k: v[0] for k, v in form.errors.items()}}, status=400)
     today = _today()
@@ -185,6 +199,7 @@ def spend_save(request, pk=None):
         unit = form.cleaned_data.get("repeat")
         if unit and not pk:
             rule = Recurring.objects.create(
+                type=txn.type,
                 title=txn.title,
                 amount=txn.amount,
                 category=txn.category,
@@ -202,15 +217,15 @@ def spend_save(request, pk=None):
         {
             "ok": True,
             "spend": txn.as_entry(),
-            "toast": f"{txn.title} {verb}: {format_money(abs(txn.amount))}",
-            "undo": None if pk else reverse("ledger:spend_delete", args=[txn.id]),
+            "toast": f"{txn.title} {verb}: {format_money(txn.amount, signed=True, type=txn.type)}",
+            "undo": None if pk else reverse("ledger:transaction_delete", args=[txn.id]),
         }
     )
 
 
 @login_required
 @require_POST
-def spend_delete(request, pk):
+def transaction_delete(request, pk):
     txn = get_object_or_404(Transaction, pk=pk)
     data = txn.as_entry()
     txn.delete()
@@ -218,7 +233,7 @@ def spend_delete(request, pk):
 
 
 @login_required
-def spend_json(request, pk):
+def transaction_json(request, pk):
     return JsonResponse(get_object_or_404(Transaction.objects.select_related("recurring"), pk=pk).as_entry())
 
 
@@ -242,11 +257,11 @@ def settings_index(request):
         request,
         "ledger/settings.html",
         {
-            "budget_rows": [r for r in rows if not r["cat"].is_fund and not r["cat"].archived],
+            "budget_rows": [r for r in rows if r["cat"].kind == Category.Kind.BUDGET and not r["cat"].archived],
             "fund_rows": [r for r in rows if r["cat"].is_fund and not r["cat"].archived],
+            "income_rows": [r for r in rows if r["cat"].is_income and not r["cat"].archived],
             "archived_rows": [r for r in rows if r["cat"].archived],
             "recurring_count": Recurring.objects.filter(paused=False).count(),
-            "settings_form": LedgerSettingsForm(instance=LedgerSettings.load()),
             "tokens": APIToken.objects.filter(user=request.user),
             "mcp_url": request.build_absolute_uri("/mcp"),
             "new_token": request.session.pop("new_token", None),
@@ -260,7 +275,7 @@ def budgets_edit(request):
     """All monthly amounts on one screen, applied from a chosen month on."""
     today = _today()
     this_month = month_of(today)
-    cats = list(Category.objects.filter(archived=False))
+    cats = list(Category.objects.filter(archived=False).exclude(kind=Category.Kind.INCOME))
     if request.method == "POST":
         from_month = parse_month(request.POST.get("from_month"), today)
         changed = 0
@@ -313,7 +328,8 @@ def category_new(request):
     if request.method == "POST" and form.is_valid():
         with db_transaction.atomic():
             cat = form.save()
-            cat.set_amount(form.cleaned_data.get("amount") or Decimal("0"), form.cleaned_data.get("from_month") or _today())
+            if not cat.is_income:  # income has no monthly budget
+                cat.set_amount(form.cleaned_data.get("amount") or Decimal("0"), form.cleaned_data.get("from_month") or _today())
         messages.success(request, _("%(name)s added") % {"name": cat.name})
         return redirect("ledger:settings")
     return render(request, "ledger/category_form.html", {"form": form, "nav": "settings"})
@@ -329,7 +345,7 @@ def category_update(request, pk):
             cat = form.save()
             amount = form.cleaned_data.get("amount")
             from_month = form.cleaned_data.get("from_month") or month_of(_today())
-            if amount is not None and amount != cat.amount_for(from_month):
+            if not cat.is_income and amount is not None and amount != cat.amount_for(from_month):
                 cat.set_amount(amount, from_month)
         messages.success(request, _("%(name)s saved") % {"name": cat.name})
         return redirect("ledger:category", pk=cat.pk)
@@ -341,7 +357,7 @@ def category_update(request, pk):
 def category_delete(request, pk):
     cat = get_object_or_404(Category, pk=pk)
     if cat.transactions.exists() or cat.recurring.exists():
-        messages.error(request, _("%(name)s has spends, so it was archived instead.") % {"name": cat.name})
+        messages.error(request, _("%(name)s has transactions, so it was archived instead.") % {"name": cat.name})
         cat.archived = True
         cat.save(update_fields=["archived", "updated_at"])
         return redirect("ledger:category", pk=cat.pk)
@@ -371,15 +387,17 @@ def recurring_index(request):
     for r in rules:
         r.next = None if r.paused else r.next_date()
     rules.sort(key=lambda r: (r.paused, r.next is None, r.next or _today(), r.title.lower()))
-    monthly = sum(
-        (
-            r.amount * {"week": Decimal("52") / 12, "month": Decimal("1"), "year": Decimal("1") / 12}[r.unit] / r.every
-            for r in rules
-            if not r.paused and r.next
-        ),
-        Decimal("0"),
+    per_month = {"week": Decimal("52") / 12, "month": Decimal("1"), "year": Decimal("1") / 12}
+
+    def monthly(kind):
+        live = [r for r in rules if not r.paused and r.next and r.type == kind]
+        return sum((r.amount * per_month[r.unit] / r.every for r in live), Decimal("0"))
+
+    return render(
+        request,
+        "ledger/recurring.html",
+        {"rules": rules, "monthly_out": monthly(Type.EXPENSE), "monthly_in": monthly(Type.INCOME), "nav": "settings"},
     )
-    return render(request, "ledger/recurring.html", {"rules": rules, "monthly": monthly, "nav": "settings"})
 
 
 @login_required
@@ -432,16 +450,6 @@ def recurring_delete(request, pk):
 
 
 # --------------------------------------------------------------------------- household settings, tokens, auth
-
-
-@login_required
-@require_POST
-def settings_save(request):
-    form = LedgerSettingsForm(request.POST, instance=LedgerSettings.load())
-    if form.is_valid():
-        form.save()
-        messages.success(request, _("Settings saved"))
-    return redirect("ledger:settings")
 
 
 @login_required

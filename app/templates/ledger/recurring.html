@@ -1,14 +1,14 @@
 {% extends "ledger/base.html" %}
 {% load ledger %}
-{% block title %}Recurring spends{% endblock %}
+{% block title %}Recurring{% endblock %}
 {% block content %}
 <c-burrow.habitat kind="river" mood="happy">
   <span class="bh-habitat__eyebrow"><a href="{% url 'ledger:settings' %}" style="color:inherit">Settings</a></span>
   <h1 class="page-title">Recurring</h1>
-  <p class="bh-habitat__sub">About {% money monthly %} a month</p>
+  <p class="bh-habitat__sub">About {% money monthly_out %} a month out{% if monthly_in %} · {% money monthly_in %} in{% endif %}</p>
 </c-burrow.habitat>
 <div class="stack">
-  <div class="note">Each one adds a spend on its date. Edits change every entry still to come; entries already added stay as they are.</div>
+  <div class="note">Each one adds a transaction on its date. Edits change every entry still to come; entries already added stay as they are.</div>
   <section class="bh-card">
     {% for r in rules %}
       <a class="setting" href="{% url 'ledger:recurring_edit' r.id %}">
@@ -18,12 +18,12 @@
           <span class="small muted">{{ r.frequency_label }} · {{ r.category.name }}{% if r.month_offset %} · counts toward the month before{% endif %} ·
             {% if r.paused %}paused{% elif r.next %}next {{ r.next|date:"j M" }}{% else %}ended{% endif %}</span>
         </span>
-        <span class="setting__value">{% money r.amount %}</span>
+        <span class="setting__value{% if r.type == 'income' %} in-text{% endif %}">{% money r.amount signed=True type=r.type %}</span>
       </a>
     {% empty %}
-      <c-ledger.empty who="" title="No recurring spends">Add rent, subscriptions and bills once and they appear on their own.</c-ledger.empty>
+      <c-ledger.empty who="" title="Nothing recurring yet">Add rent, bills, subscriptions or pay once and they appear on their own.</c-ledger.empty>
     {% endfor %}
-    <div class="actions" style="margin-top:12px"><a class="bh-btn bh-btn--primary" href="{% url 'ledger:recurring_new' %}">{% icon 'plus' 20 %} Add recurring spend</a></div>
+    <div class="actions" style="margin-top:12px"><a class="bh-btn bh-btn--primary" href="{% url 'ledger:recurring_new' %}">{% icon 'plus' 20 %} Add recurring</a></div>
   </section>
 </div>
 {% endblock %}

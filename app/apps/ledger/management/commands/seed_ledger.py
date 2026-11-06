@@ -9,7 +9,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.ledger import services
-from apps.ledger.models import Category, LedgerSettings, Recurring, Transaction
+from apps.ledger.models import Category, Recurring, Transaction
 from apps.ledger.months import add_months, month_of
 
 # name, monthly budget, titles, amount range, chance of a spend on any day
@@ -41,9 +41,6 @@ class Command(BaseCommand):
         rnd = random.Random(seed)
         today = timezone.localdate()
         first = add_months(month_of(today), -(months - 1))
-        settings = LedgerSettings.load()
-        settings.currency = "S$"
-        settings.save()
 
         for i, (name, budget, titles, (lo, hi), chance) in enumerate(BUDGETS):
             cat = Category.objects.create(name=name, kind=Category.Kind.BUDGET, position=i)
@@ -68,6 +65,20 @@ class Command(BaseCommand):
                     amount=Decimal(rnd.randint(80, 600)), title=rnd.choice(titles), category=cat, date=day, month=month_of(day)
                 )
 
+        salary = Category.objects.create(name="Salary", kind=Category.Kind.INCOME)
+        interest = Category.objects.create(name="Interest", kind=Category.Kind.INCOME, position=1)
+        for who, amount in (("Pay (Alex)", "4200"), ("Pay (Sam)", "3650")):
+            Recurring.objects.create(
+                type="income", title=who, amount=Decimal(amount), category=salary, unit="month", start_date=first + timedelta(days=24)
+            )
+        m = first
+        while m <= month_of(today):
+            Transaction.objects.create(type="income", amount=Decimal(rnd.randint(8, 30)), title="Savings interest",
+                                       category=interest, date=m, month=m)
+            m = add_months(m, 1)
+        Transaction.objects.create(type="income", amount=Decimal("24.90"), title="Returned shoes",
+                                   category=Category.objects.get(name="Fun"), date=today - timedelta(days=3), month=month_of(today))
+
         transport = Category.objects.get(name="Transport")
         start = add_months(first, 1) + timedelta(days=9)
         Recurring.objects.create(
@@ -79,4 +90,4 @@ class Command(BaseCommand):
             unit="month", start_date=first + timedelta(days=rnd.randint(0, 27)),
         )
         created = services.generate_due(today)
-        self.stdout.write(self.style.SUCCESS(f"Seeded {Transaction.objects.count()} spends ({created} recurring)."))
+        self.stdout.write(self.style.SUCCESS(f"Seeded {Transaction.objects.count()} transactions ({created} recurring)."))

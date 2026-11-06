@@ -6,10 +6,11 @@
 The mapping, in short:
 
 * One ledger ``Category`` per old category name (case-insensitive, merged across
-  owners). Categories on a sinking account become funds, the rest budgets;
-  inactive ones are archived. A budget-side category that only ever saw income
-  (salary, interest) and has no budget is not created: the ledger does not
-  track income.
+  owners). Categories on a sinking account become funds; a category that only
+  ever saw income (salary, interest) and has no budget becomes an income
+  category; the rest are budgets. Inactive ones are archived. Names are unique
+  across kinds: a budget keeps its name, a clashing fund or income category
+  gets " (fund)" or " (income)".
 * Budgets: the old effective budget (explicit ``Budget`` row, else the
   category's default) is replayed month by month into effective-dated
   ``MonthlyAmount`` rows, written only where the amount changes.
@@ -17,11 +18,14 @@ The mapping, in short:
   becomes the fund's top-up (0 in months without one), and the old default
   takes over after the last allocation if the old monthly task would still
   have allocated it (active category, unarchived sinking account).
-* Spends are positive; refunds and money into a fund are negative.
-  Uncategorized spends go to "Uncategorized"; uncategorized income and unpaid
-  (planned) transactions are skipped.
-* Unfinished expense ``RecurringTransaction`` rules become ``Recurring`` rules
-  that pick up after the last imported (paid) entry.
+* Transactions keep their type (expense or income) with a positive amount.
+  Income in a budget or fund category is money back or money into the fund.
+  Uncategorized expenses go to "Uncategorized", uncategorized income to
+  "Other income" (an income category). Unpaid (planned) transactions and zero
+  amounts are skipped. Transfers between accounts carry no marker, so both legs
+  are imported and likely pairs are listed in the report.
+* Unfinished ``RecurringTransaction`` rules (expense and income) become
+  ``Recurring`` rules that pick up after the last imported (paid) entry.
 
 Old data is read through the unfiltered managers, so the import sees every
 user's data whatever the thread-local user is.
@@ -42,7 +46,6 @@ from apps.accounts.models import Account
 from apps.budgets.models import Budget
 from apps.ledger.models import (
     Category,
-    LedgerSettings,
     MonthlyAmount,
     Recurring,
     Transaction,
@@ -55,18 +58,26 @@ from apps.transactions.models import TransactionCategory as OldCategory
 
 ALLOCATION_MARKER = "[auto-allocation]"
 UNCATEGORIZED = "Uncategorized"
+OTHER_INCOME = "Other income"
 CENT = Decimal("0.01")
 ZERO = Decimal(0)
 
-# Labels used in the report (and by the tests).
-SPEND, REFUND, UNCAT_SPEND = "spends", "refunds", "uncategorized spends"
-FUND_SPEND, FUND_DEPOSIT = "fund spends", "money into funds"
+# Labels used in the report (and by the tests), expenses then income.
+SPEND, UNCAT_SPEND = "spends in budgets", f"uncategorized spends, to '{UNCATEGORIZED}'"
+FUND_SPEND, INCOME_SPEND = "spends from funds", "spends in income categories"
+INCOME, UNCAT_INCOME = "income in income categories", f"uncategorized income, to '{OTHER_INCOME}'"
+REFUND, FUND_DEPOSIT = "money back in budgets", "money into funds"
+EXPENSE_LABELS = (SPEND, UNCAT_SPEND, FUND_SPEND, INCOME_SPEND)
+INCOME_LABELS = (INCOME, UNCAT_INCOME, REFUND, FUND_DEPOSIT)
 SKIP_ALLOCATION = "auto-allocation legs (now fund top-ups)"
 SKIP_UNPAID_FUTURE = "unpaid (planned), dated after today"
 SKIP_UNPAID_PAST = "unpaid, dated today or earlier"
-SKIP_INCOME = "income without a category (not tracked)"
-SKIP_INCOME_CATEGORY = "income in an income-only category (not tracked)"
+SKIP_ZERO = "zero amount"
 SKIP_DELETED = "soft-deleted"
+
+# For names used by more than one kind: the article form, the noun, the suffix.
+_A_KIND = {Category.Kind.BUDGET: "a budget", Category.Kind.FUND: "a fund", Category.Kind.INCOME: "an income category"}
+_SUFFIX = {Category.Kind.FUND: " (fund)", Category.Kind.INCOME: " (income)"}
 
 
 class LedgerNotEmpty(Exception):
@@ -104,9 +115,9 @@ class ImportReport:
     replaced: dict = field(default_factory=dict)
     budgets: list = field(default_factory=list)
     funds: list = field(default_factory=list)
-    not_created: list = field(default_factory=list)
+    incomes: list = field(default_factory=list)
     monthly_amounts: int = 0
-    imported: Counter = field(default_factory=Counter)
+    imported: Counter = field(default_factory=Counter)  # by label, see EXPENSE_LABELS and INCOME_LABELS
     muted: int = 0
     skipped: Counter = field(default_factory=Counter)
     rules: list = field(default_factory=list)
@@ -131,12 +142,14 @@ class ImportReport:
         add(f"Categories ({self.monthly_amounts} monthly amounts written)")
         add(f"  Budgets ({len(self.budgets)}): " + (", ".join(self.budgets) or "none"))
         add(f"  Funds ({len(self.funds)}): " + (", ".join(self.funds) or "none"))
-        if self.not_created:
-            add("  Not created (income only): " + ", ".join(self.not_created))
+        add(f"  Income ({len(self.incomes)}): " + (", ".join(self.incomes) or "none"))
         add("")
         add(f"Transactions imported: {sum(self.imported.values())}")
-        for label, n in self.imported.items():
-            add(f"  {label:<52}{n:>7}")
+        for heading, labels in (("Expenses", EXPENSE_LABELS), ("Income", INCOME_LABELS)):
+            add(f"  {heading + ':':<52}{sum(self.imported[label] for label in labels):>7}")
+            for label in labels:
+                if self.imported[label]:
+                    add(f"    {label:<50}{self.imported[label]:>7}")
         add(f"  {'(muted in the old app, kept)':<52}{self.muted:>7}")
         add(f"Transactions skipped: {sum(self.skipped.values())}")
         for label, n in self.skipped.items():
@@ -150,7 +163,7 @@ class ImportReport:
             for line in self.rules_skipped:
                 add(f"  {line}")
         add("")
-        add(f"Currency: {self.currency or 'unchanged'}")
+        add("Currency: " + (f"{self.currency}; Burrow shows every amount with $" if self.currency else "none"))
         if self.other_currencies:
             add("  Also used, amounts imported as is (not converted): "
                 + ", ".join(f"{code} ({n} transactions)" for code, n in self.other_currencies))
@@ -176,12 +189,16 @@ class _Group:
     kind: str
     old: list = field(default_factory=list)
     spends: int = 0  # expense activity: transactions (paid or not) and expense rules
-    incomes: int = 0
+    incomes: int = 0  # income activity, likewise
     category: Category | None = None
 
     @property
     def is_fund(self) -> bool:
         return self.kind == Category.Kind.FUND
+
+    @property
+    def is_income(self) -> bool:
+        return self.kind == Category.Kind.INCOME
 
 
 def run_import(*, replace: bool = False, dry_run: bool = False, today: date | None = None) -> ImportReport:
@@ -220,7 +237,6 @@ class _Importer:
         self.explicit: dict[tuple[int, date], Decimal] = {}  # old Budget rows
         self.pending: list[tuple[OldTxn, _Group]] = []  # transactions to import
         self.allocations: dict[_Group, dict[date, Decimal]] = defaultdict(lambda: defaultdict(Decimal))
-        self.incomes_on: dict[tuple[date, Decimal], set[int]] = defaultdict(set)  # for transfer hints
         self.rule_offsets: dict[int, set[int]] = defaultdict(set)  # old rule id -> month offsets seen
         self.rules: dict[int, Recurring] = {}  # old rule id -> new rule
 
@@ -233,7 +249,8 @@ class _Importer:
         self._fund_amounts()
         self._create_rules(rules)
         self._create_transactions()
-        self._set_currency()
+        self._flag_transfers()
+        self._currencies()
         self._check_funds()
         return self.report
 
@@ -250,9 +267,11 @@ class _Importer:
         for b in Budget.all_objects.all():
             self.explicit[(b.category_id, month_of(b.month))] = b.amount
 
-    def _uncategorized(self) -> _Group:
-        key = (UNCATEGORIZED.casefold(), Category.Kind.BUDGET)
-        return self.groups.setdefault(key, _Group(UNCATEGORIZED, Category.Kind.BUDGET))
+    def _uncategorized(self, expense: bool = True) -> _Group:
+        """Where uncategorized expenses ("Uncategorized") or income ("Other income") go.
+        An old income-only "Other income" category is joined in ``_create_categories``."""
+        name, kind = (UNCATEGORIZED, Category.Kind.BUDGET) if expense else (OTHER_INCOME, Category.Kind.INCOME)
+        return self.groups.setdefault((name.casefold(), kind), _Group(name, kind))
 
     def _scan_transactions(self):
         skip = self.report.skipped
@@ -274,17 +293,18 @@ class _Importer:
                     group.spends += 1
                 else:
                     group.incomes += 1
-            if not expense:
-                self.incomes_on[(t.date, t.amount)].add(t.account_id)
             if not t.is_paid:
                 skip[SKIP_UNPAID_FUTURE if t.date > self.today else SKIP_UNPAID_PAST] += 1
                 continue
+            if money(t.amount) <= 0:
+                skip[SKIP_ZERO] += 1
+                continue
             if group is None:
-                if not expense:
-                    skip[SKIP_INCOME] += 1
-                    continue
-                group = self._uncategorized()
-                group.spends += 1
+                group = self._uncategorized(expense)
+                if expense:
+                    group.spends += 1
+                else:
+                    group.incomes += 1
             self.pending.append((t, group))
 
     def _scan_rules(self) -> list:
@@ -293,20 +313,24 @@ class _Importer:
             name = rule.description or f"rule #{rule.id}"
             reason = None
             unit, every = self._schedule(rule)
-            if rule.type != OldTxn.Type.EXPENSE:
-                reason = "income rule (not tracked)"
-            elif rule.end_date and rule.end_date < self.today:
+            if rule.end_date and rule.end_date < self.today:
                 reason = f"finished on {rule.end_date}"
             elif unit is None:
                 reason = (
                     f"every {rule.recurrence_interval} {rule.recurrence_type}(s) cannot be "
                     f"expressed in whole weeks, months or years"
                 )
+            elif money(rule.amount) <= 0:
+                reason = "amount is 0"
             if reason:
                 self.report.rules_skipped.append(f"{name}: {reason}")
                 continue
-            group = self.group_of.get(rule.category_id) or self._uncategorized()
-            group.spends += 1
+            expense = rule.type == OldTxn.Type.EXPENSE
+            group = self.group_of.get(rule.category_id) or self._uncategorized(expense)
+            if expense:
+                group.spends += 1
+            else:
+                group.incomes += 1
             keep.append((rule, group, unit, every))
         return keep
 
@@ -329,33 +353,36 @@ class _Importer:
     def _create_categories(self):
         r = self.report
         budgeted = {cat_id for cat_id, _m in self.explicit}
-        create = []
-        for group in sorted(self.groups.values(), key=lambda g: (g.kind, g.name.casefold())):
+        for group in self.groups.values():
             has_budget = any(c.monthly_default_amount is not None or c.id in budgeted for c in group.old)
-            if not group.is_fund and group.old and group.incomes and not group.spends and not has_budget:
-                r.not_created.append(group.name)
-            else:
-                create.append(group)
-        names = {g.name.casefold() for g in create if not g.is_fund}
-        for group in create:
+            only_income = group.old and group.incomes and not group.spends and not has_budget
+            if group.kind == Category.Kind.BUDGET and only_income:
+                group.kind = Category.Kind.INCOME
+        labels = {Category.Kind.BUDGET: r.budgets, Category.Kind.FUND: r.funds, Category.Kind.INCOME: r.incomes}
+        made: dict[tuple[str, str], Category] = {}
+        taken: dict[str, str] = {}  # casefolded name -> kind that has it
+        # Kinds sort budget, fund, income, so a budget keeps its name, then a fund. An
+        # old category sorts before the "Other income" group, which then joins it.
+        for group in sorted(self.groups.values(), key=lambda g: (g.kind, g.name.casefold(), not g.old)):
+            key = (group.name.casefold(), group.kind)
+            if key in made:
+                group.category = made[key]
+                continue
             name = group.name
-            if group.is_fund and name.casefold() in names:
-                name = f"{name[:73]} (fund)"
-                r.notes.append(f"'{group.name}' is both a budget and a fund in the old data; the fund is now '{name}'.")
+            if other := taken.get(name.casefold()):
+                suffix = _SUFFIX[group.kind]
+                name = name[: 80 - len(suffix)] + suffix
+                r.notes.append(
+                    f"'{group.name}' is both {_A_KIND[other]} and {_A_KIND[group.kind]} in the old data; "
+                    f"the {_A_KIND[group.kind].split(' ', 1)[1]} is now '{name}'."
+                )
+            taken[name.casefold()] = group.kind
             archived = bool(group.old) and not any(c.active for c in group.old)
-            group.category = Category.objects.create(name=name, kind=group.kind, archived=archived)
+            group.category = made[key] = Category.objects.create(name=name, kind=group.kind, archived=archived)
             label = name + (" (archived)" if archived else "")
             if len(group.old) > 1:
                 label += f" (merged {len(group.old)})"
-            (r.funds if group.is_fund else r.budgets).append(label)
-
-        kept = []
-        for t, group in self.pending:
-            if group.category is None:
-                r.skipped[SKIP_INCOME_CATEGORY] += 1
-            else:
-                kept.append((t, group))
-        self.pending = kept
+            labels[group.kind].append(label)
 
     def _old_budget(self, group: _Group, m: date) -> Decimal | None:
         """The old effective budget for ``m`` (``_budget_for``), summed over merged categories."""
@@ -364,10 +391,11 @@ class _Importer:
         return sum(values, ZERO) if values else None
 
     def _budget_amounts(self):
-        groups = [g for g in self.groups.values() if g.category and not g.is_fund and g.old]
+        groups = [g for g in self.groups.values() if g.kind == Category.Kind.BUDGET and g.old]
         old_ids = {c.id for g in groups for c in g.old}
         budget_months = [m for cat_id, m in self.explicit if cat_id in old_ids]
-        txn_months = [month_of(t.reference_date) for t, _g in self.pending]
+        # Income categories don't open the range: budgets start with the spending data.
+        txn_months = [month_of(t.reference_date) for t, g in self.pending if not g.is_income]
         first = min(budget_months + txn_months, default=self.current)
         # One month past the last explicit row so the current default carries on.
         last = add_months(max(budget_months + [self.current]), 1)
@@ -391,7 +419,7 @@ class _Importer:
     def _fund_amounts(self):
         rows = []
         for group in self.groups.values():
-            if not (group.category and group.is_fund):
+            if not group.is_fund:
                 continue
             allocs = self.allocations.get(group, {})
             prev = None
@@ -435,6 +463,7 @@ class _Importer:
             if old.reference_date:
                 offsets.add(_months_apart(old.start_date, old.reference_date))
             rule = Recurring(
+                type=Recurring.Type.EXPENSE if old.type == OldTxn.Type.EXPENSE else Recurring.Type.INCOME,
                 title=(old.description.strip() or group.category.name)[:200],
                 amount=money(old.amount),
                 category=group.category,
@@ -453,6 +482,8 @@ class _Importer:
             self.rules[old.id] = rule
 
             line = f"{rule.title}: {rule.frequency_label}"
+            if rule.type == Recurring.Type.INCOME:
+                line += ", income"
             if rule.month_offset:
                 line += ", counts toward the previous month"
             if rule.paused:
@@ -491,20 +522,19 @@ class _Importer:
 
     def _create_transactions(self):
         r = self.report
-        objs, rounded, transfers, transfer_total = [], 0, 0, ZERO
+        objs, rounded = [], 0
         net: dict[_Group, Decimal] = defaultdict(Decimal)
         for t, group in self.pending:
             expense = t.type == OldTxn.Type.EXPENSE
             amount = money(t.amount)
             rounded += amount != t.amount
             net[group] += amount if expense else -amount
-            if group.is_fund:
+            if t.category_id is None:
+                label = UNCAT_SPEND if expense else UNCAT_INCOME
+            elif group.is_fund:
                 label = FUND_SPEND if expense else FUND_DEPOSIT
-            elif t.category_id is None:
-                label = UNCAT_SPEND
-                if self.incomes_on.get((t.date, t.amount), set()) - {t.account_id}:
-                    transfers += 1
-                    transfer_total += amount
+            elif group.is_income:
+                label = INCOME_SPEND if expense else INCOME
             else:
                 label = SPEND if expense else REFUND
             r.imported[label] += 1
@@ -513,7 +543,8 @@ class _Importer:
             r.linked += rule is not None
             objs.append(
                 Transaction(
-                    amount=amount if expense else -amount,
+                    type=Transaction.Type.EXPENSE if expense else Transaction.Type.INCOME,
+                    amount=amount,
                     title=(t.description.strip() or group.category.name)[:200],
                     category=group.category,
                     date=t.date,
@@ -527,41 +558,61 @@ class _Importer:
 
         if rounded:
             r.notes.append(f"{rounded} amounts had more than 2 decimal places and were rounded to cents.")
-        if transfers:
-            r.notes.append(
-                f"{transfers} uncategorized spends (total {transfer_total}) match an income of the same amount "
-                f"on another account the same day, so they may be transfers. They were imported as "
-                f"'{UNCATEGORIZED}'; review them."
-            )
         if n := r.skipped.get(SKIP_UNPAID_PAST):
             r.notes.append(
                 f"{n} unpaid transactions dated today or earlier were skipped. If they happened, mark them "
                 f"paid in the old app and import again with --replace."
             )
         for group, total in net.items():
-            if not group.is_fund and total < 0:
+            if group.kind == Category.Kind.BUDGET and total < 0:
                 r.notes.append(
                     f"Budget '{group.category.name}' has more income than spending ({total}); "
                     f"check whether it is an income category."
                 )
 
-    def _set_currency(self):
-        r = self.report
-        counts = Counter(t.account.currency for t, _g in self.pending)
-        if not counts:
-            r.notes.append("No transactions were imported, so the currency symbol was left as it was.")
-            return
-        (top, n), *others = counts.most_common()
-        settings = LedgerSettings.load()
-        settings.currency = (top.prefix.strip() or top.code.strip())[:8]
-        settings.save()
-        r.currency = f"{settings.currency} ({top.code}, {n} transactions)"
-        r.other_currencies = [(c.code, k) for c, k in others]
+    def _flag_transfers(self):
+        """The old app recorded a transfer between accounts as an expense on one and
+        an income on the other, with no marker, so both legs were imported. Pair an
+        imported expense with an imported income of the same amount on the same day
+        on another account, one of the two uncategorized, and list the pairs."""
+        incomes = defaultdict(list)
+        for t, group in self.pending:
+            if t.type == OldTxn.Type.INCOME:
+                incomes[(t.date, t.amount)].append((t, group))
+        pairs, total, out_legs, in_legs = 0, ZERO, Counter(), Counter()
+        for t, group in self.pending:
+            if t.type != OldTxn.Type.EXPENSE:
+                continue
+            candidates = incomes.get((t.date, t.amount), [])
+            for i, (u, u_group) in enumerate(candidates):
+                if u.account_id != t.account_id and (t.category_id is None or u.category_id is None):
+                    del candidates[i]
+                    pairs += 1
+                    total += money(t.amount)
+                    out_legs[group.category.name] += 1
+                    in_legs[u_group.category.name] += 1
+                    break
+        if pairs:
+            out_in = [", ".join(f"'{name}' ({n})" for name, n in sorted(legs.items())) for legs in (out_legs, in_legs)]
+            self.report.notes.append(
+                f"{pairs} possible transfers between accounts (total {total}): an expense and an income of the "
+                f"same amount on the same day on different accounts, at least one of them uncategorized. Both "
+                f"legs were imported: the expenses in {out_in[0]}, the income in {out_in[1]}. Where one is a "
+                f"transfer, delete the legs that are not real spending, income or money into a fund."
+            )
+
+    def _currencies(self):
+        """Amounts are imported as they are, in whatever currency; nothing is stored."""
+        counts = Counter(t.account.currency.code for t, _g in self.pending)
+        if counts:
+            (top, n), *others = counts.most_common()
+            self.report.currency = f"{top} ({n} transactions)"
+            self.report.other_currencies = others
 
     def _check_funds(self):
         book = Book()
         for group in self.groups.values():
-            if group.category and group.is_fund:
+            if group.is_fund:
                 old = money(old_fund_balance([c.id for c in group.old], self.current))
                 new = book.fund_balance(group.category, self.current)
                 self.report.fund_balances.append((group.category.name, old, new))

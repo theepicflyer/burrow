@@ -1,15 +1,15 @@
 from datetime import date
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 
 from django import forms
 from django.utils.translation import gettext_lazy as _
 
-from apps.ledger.models import Category, LedgerSettings, Recurring, Transaction
+from apps.ledger.models import Category, Recurring, Transaction, Type
 from apps.ledger.months import month_of, parse_month
 
 
 class MoneyField(forms.DecimalField):
-    """Accepts ``12.50``, ``12,50`` and simple sums like ``8+4.5`` (splitting a bill)."""
+    """Accepts ``12.50`` or ``12,50``; spaces and a leading ``$`` are ignored."""
 
     def __init__(self, **kwargs):
         kwargs.setdefault("max_digits", 14)
@@ -18,23 +18,7 @@ class MoneyField(forms.DecimalField):
 
     def to_python(self, value):
         if isinstance(value, str):
-            text = value.replace(" ", "").replace(",", ".")
-            if text and any(op in text[1:] for op in "+-"):
-                try:
-                    total, sign, num = Decimal("0"), 1, ""
-                    for ch in text + "+":
-                        if ch in "+-" and num:
-                            total += sign * Decimal(num)
-                            sign, num = (1 if ch == "+" else -1), ""
-                        elif ch in "+-":
-                            sign = 1 if ch == "+" else -1
-                        else:
-                            num += ch
-                    value = str(total)
-                except InvalidOperation as err:
-                    raise forms.ValidationError(_("Enter an amount like 12.50.")) from err
-            else:
-                value = text
+            value = value.replace(" ", "").replace(",", ".").lstrip("$")
         return super().to_python(value)
 
 
@@ -52,9 +36,9 @@ class MonthField(forms.CharField):
         return m
 
 
-class SpendForm(forms.Form):
-    amount = MoneyField()
-    refund = forms.BooleanField(required=False)
+class TransactionForm(forms.Form):
+    type = forms.ChoiceField(choices=Type.choices, required=False)
+    amount = MoneyField(min_value=Decimal("0.01"), error_messages={"min_value": _("Enter an amount above zero.")})
     title = forms.CharField(max_length=200, required=False)
     category = forms.ModelChoiceField(queryset=Category.objects.all(), error_messages={"required": _("Pick a category.")})
     date = forms.DateField(required=False)
@@ -64,16 +48,17 @@ class SpendForm(forms.Form):
         required=False, choices=[("", "-"), ("week", "week"), ("month", "month"), ("year", "year")]
     )
 
-    def clean_amount(self):
-        amount = self.cleaned_data["amount"]
-        if amount == 0:
-            raise forms.ValidationError(_("Amount can't be zero."))
-        return amount
+    def clean(self):
+        data = super().clean()
+        cat = data.get("category")
+        if cat and cat.is_income and (data.get("type") or Type.EXPENSE) == Type.EXPENSE:
+            self.add_error("category", _("%(name)s is for income. Pick another category.") % {"name": cat.name})
+        return data
 
     def apply(self, txn: Transaction, today: date) -> Transaction:
         d = self.cleaned_data
-        amount = abs(d["amount"])
-        txn.amount = -amount if (d["refund"] or d["amount"] < 0) else amount
+        txn.type = d["type"] or Type.EXPENSE
+        txn.amount = d["amount"]
         txn.category = d["category"]
         txn.title = (d["title"] or "").strip() or d["category"].name
         txn.date = d["date"] or txn.date or today
@@ -99,27 +84,28 @@ class CategoryForm(forms.ModelForm):
 
 
 class RecurringForm(forms.ModelForm):
-    amount = MoneyField()
+    amount = MoneyField(min_value=Decimal("0.01"))
 
     class Meta:
         model = Recurring
-        fields = ["title", "amount", "category", "note", "every", "unit", "start_date", "end_date", "month_offset"]
+        fields = ["type", "title", "amount", "category", "note", "every", "unit", "start_date", "end_date", "month_offset"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["category"].queryset = Category.objects.filter(archived=False) | Category.objects.filter(
             pk=getattr(self.instance, "category_id", None)
         )
+        self.fields["type"].required = False
+
+    def clean_type(self):
+        return self.cleaned_data.get("type") or Type.EXPENSE
 
     def clean(self):
         data = super().clean()
+        cat = data.get("category")
+        if cat and cat.is_income and data.get("type") == Type.EXPENSE:
+            self.add_error("category", _("%(name)s is for income. Pick another category.") % {"name": cat.name})
         start, end = data.get("start_date"), data.get("end_date")
         if start and end and end < start:
             self.add_error("end_date", _("The last date can't be before the first."))
         return data
-
-
-class LedgerSettingsForm(forms.ModelForm):
-    class Meta:
-        model = LedgerSettings
-        fields = ["currency"]

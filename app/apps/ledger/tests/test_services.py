@@ -7,8 +7,8 @@ from apps.ledger import services
 from apps.ledger.models import Category, Recurring, Transaction
 
 
-def spend(cat, amount, d, month=None, title="Spend"):
-    return Transaction.objects.create(category=cat, amount=D(amount), date=d, month=month or d, title=title)
+def spend(cat, amount, d, month=None, title="Spend", type="expense"):
+    return Transaction.objects.create(category=cat, type=type, amount=D(amount), date=d, month=month or d, title=title)
 
 
 class MonthlyAmountTests(TestCase):
@@ -42,7 +42,7 @@ class FundTests(TestCase):
 
     def test_balance_grows_on_the_first_and_shrinks_by_spends(self):
         spend(self.fund, "450", date(2026, 2, 14), title="Flights")
-        spend(self.fund, "-50", date(2026, 3, 2), title="Refund")
+        spend(self.fund, "50", date(2026, 3, 2), title="Refund", type="income")
         book = services.Book()
         self.assertEqual(book.fund_balance(self.fund, date(2025, 12, 1)), D("100"))
         self.assertEqual(book.fund_balance(self.fund, date(2026, 1, 1)), D("300"))
@@ -85,6 +85,37 @@ class MonthStatusTests(TestCase):
         old.set_amount(D("50"), date(2026, 1, 1))
         status = services.month_status(date(2026, 3, 1), today=date(2026, 3, 15))
         self.assertEqual(status.budgets, [])
+
+
+class IncomeTests(TestCase):
+    def test_income_is_counted_apart_from_budgets(self):
+        pay = Category.objects.create(name="Salary", kind=Category.Kind.INCOME)
+        food = Category.objects.create(name="Food")
+        food.set_amount(D("300"), date(2026, 1, 1))
+        car = Category.objects.create(name="Car", kind=Category.Kind.FUND)
+        car.set_amount(D("100"), date(2026, 1, 1))
+        spend(pay, "4000", date(2026, 3, 25), type="income")
+        spend(food, "250", date(2026, 3, 5))
+        spend(food, "30", date(2026, 3, 9), title="Refund", type="income")
+        spend(car, "120", date(2026, 3, 12))
+        status = services.month_status(date(2026, 3, 1), today=date(2026, 4, 2))
+        self.assertEqual([b.category.name for b in status.budgets], ["Food"])
+        self.assertEqual(status.total_spent, D("220"))  # money back lowers what was spent
+        self.assertEqual(status.income, D("4000"))
+        self.assertEqual(status.out, D("340"))
+        self.assertEqual(status.net, D("3660"))
+        a = services.analysis(date(2026, 3, 1), 3, today=date(2026, 4, 2))
+        self.assertEqual([t.category.name for t in a.categories], ["Food"])
+        march = a.flows[-1]
+        self.assertEqual((march.income, march.out, march.net), (D("4000"), D("340"), D("3660")))
+        self.assertEqual(a.avg_income, D("4000.00"))
+
+    def test_recurring_income(self):
+        pay = Category.objects.create(name="Salary", kind=Category.Kind.INCOME)
+        Recurring.objects.create(type="income", title="Pay", amount=D("3000"), category=pay, start_date=date(2026, 1, 25))
+        services.generate_due(date(2026, 2, 25))
+        self.assertEqual(list(Transaction.objects.values_list("type", flat=True)), ["income", "income"])
+        self.assertEqual(services.Book().received(pay.id, date(2026, 2, 1)), D("3000"))
 
 
 class AnalysisTests(TestCase):

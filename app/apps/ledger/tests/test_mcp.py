@@ -16,7 +16,7 @@ from django.utils import timezone
 from oauth2_provider.models import get_access_token_model, get_application_model
 
 from apps.api.models import APIToken
-from apps.ledger.models import Category, LedgerSettings, Recurring, Transaction
+from apps.ledger.models import Category, Recurring, Transaction
 
 TODAY = date(2026, 5, 20)
 
@@ -59,9 +59,6 @@ class LedgerMCPTestCase(TestCase):
             email="alex@example.com", password="x", first_name="Alex", last_name="Rivers"
         )
         cls.sam = User.objects.create_user(email="sam@example.com", password="x")
-        settings = LedgerSettings.load()
-        settings.currency = "S$"
-        settings.save()
 
         cls.groceries = Category.objects.create(name="Groceries", position=1)
         cls.groceries.set_amount(Decimal("400"), date(2026, 1, 1))
@@ -73,9 +70,11 @@ class LedgerMCPTestCase(TestCase):
         )
         cls.holiday.set_amount(Decimal("150"), date(2026, 1, 1))
         cls.hobby = Category.objects.create(name="Old hobby", archived=True)
+        cls.salary = Category.objects.create(name="Salary", kind=Category.Kind.INCOME)
 
-        def spend(amount, title, category, day, month=None, note="", by=None):
+        def spend(amount, title, category, day, month=None, note="", by=None, type=Transaction.Type.EXPENSE):
             return Transaction.objects.create(
+                type=type,
                 amount=Decimal(amount),
                 title=title,
                 category=category,
@@ -92,9 +91,11 @@ class LedgerMCPTestCase(TestCase):
         cls.weekly = spend(
             "120.50", "Weekly groceries", cls.groceries, date(2026, 5, 3), note="Fruit and veg", by=cls.sam
         )
-        spend("-20", "Returned eggs", cls.groceries, date(2026, 5, 4))
+        cls.eggs = spend("20", "Returned eggs", cls.groceries, date(2026, 5, 4), type=Transaction.Type.INCOME)
         cls.train = spend("110", "April train pass", cls.transport, date(2026, 5, 10), month=date(2026, 4, 1))
         spend("500", "Flights", cls.holiday, date(2026, 4, 20))
+        spend("3000", "Pay", cls.salary, date(2026, 4, 25), type=Transaction.Type.INCOME)
+        cls.pay = spend("3200", "Pay", cls.salary, date(2026, 5, 15), type=Transaction.Type.INCOME)
 
         cls.phone = Recurring.objects.create(
             title="Phone plan",
@@ -175,6 +176,9 @@ class ToolListTests(LedgerMCPTestCase):
             self.assertEqual(tools[name]["annotations"]["readOnlyHint"], name not in WRITE_TOOLS, name)
         add = tools["add_transaction"]["inputSchema"]
         self.assertEqual(set(add["required"]), {"amount", "title", "category_id"})
+        self.assertIsNone(add["properties"]["type"]["default"])
+        self.assertIn("type", tools["update_transaction"]["inputSchema"]["properties"])
+        self.assertIn("type", tools["list_transactions"]["inputSchema"]["properties"])
 
     def test_unauthenticated_request_is_rejected(self):
         body = {"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}
@@ -188,12 +192,13 @@ class ToolListTests(LedgerMCPTestCase):
 class ReadToolTests(LedgerMCPTestCase):
     def test_ledger_info(self):
         info = self.call(self.RO, "get_ledger_info")
-        self.assertEqual(info["currency"], "S$")
+        self.assertEqual(info["currency"], "$")
         self.assertEqual(info["today"], "2026-05-20")
         self.assertEqual(info["current_month"], "2026-05")
         self.assertEqual(info["signed_in_as"], {"email": "alex@example.com", "name": "Alex Rivers"})
         self.assertFalse(info["can_write"])
-        self.assertIn("fund", info["conventions"]["category_kinds"])
+        self.assertEqual(set(info["conventions"]["category_kinds"]), {"budget", "fund", "income"})
+        self.assertEqual(set(info["conventions"]["type"]), {"expense", "income"})
         self.assertTrue(self.call(self.RW, "get_ledger_info")["can_write"])
         self.assertFalse(self.call(self.OAUTH_READ, "get_ledger_info")["can_write"])
         self.assertTrue(self.call(self.OAUTH_RW, "get_ledger_info")["can_write"])
@@ -210,7 +215,7 @@ class ReadToolTests(LedgerMCPTestCase):
     def test_list_categories(self):
         data = self.call(self.RO, "list_categories")
         by_name = {c["name"]: c for c in data["categories"]}
-        self.assertEqual(set(by_name), {"Groceries", "Transport", "Holiday"})
+        self.assertEqual(set(by_name), {"Groceries", "Transport", "Holiday", "Salary"})
         self.assertEqual(by_name["Groceries"]["kind"], "budget")
         self.assertEqual(by_name["Groceries"]["monthly_amount"], "400.00")
         self.assertEqual(by_name["Transport"]["monthly_amount"], "150.00")
@@ -221,6 +226,10 @@ class ReadToolTests(LedgerMCPTestCase):
         # 100 opening + 5 top-ups of 150 - 500 flights.
         self.assertEqual(holiday["balance"], "350.00")
         self.assertEqual(holiday["target"], "2000.00")
+        salary = by_name["Salary"]
+        self.assertEqual(salary["kind"], "income")
+        self.assertIsNone(salary["monthly_amount"])
+        self.assertNotIn("balance", salary)
 
         archived = self.call(self.RO, "list_categories", include_archived=True)["categories"]
         hobby = next(c for c in archived if c["name"] == "Old hobby")
@@ -231,12 +240,14 @@ class ReadToolTests(LedgerMCPTestCase):
         titles = sorted(t["title"] for t in data["transactions"])
         # The train pass is dated in May but counts toward April; the phone plan
         # entry was created by its recurring rule.
-        self.assertEqual(titles, ["April train pass", "Flights", "Market run", "Phone plan"])
-        self.assertEqual(data["total"], 4)
-        self.assertEqual(data["total_amount"], "1090.00")
+        self.assertEqual(titles, ["April train pass", "Flights", "Market run", "Pay", "Phone plan"])
+        self.assertEqual(data["total"], 5)
+        self.assertEqual((data["total_expenses"], data["total_income"]), ("1090.00", "3000.00"))
+        self.assertNotIn("total_amount", data)
         train = next(t for t in data["transactions"] if t["id"] == self.train.id)
         self.assertEqual(train["date"], "2026-05-10")
         self.assertEqual(train["month"], "2026-04")
+        self.assertEqual(train["type"], "expense")
         self.assertEqual(train["amount"], "110.00")
         self.assertEqual(train["category"], {"id": self.transport.id, "name": "Transport", "kind": "budget"})
         self.assertIsNone(train["recurring_id"])
@@ -245,7 +256,7 @@ class ReadToolTests(LedgerMCPTestCase):
 
     def test_list_transactions_filters_and_paging(self):
         data = self.call(self.OAUTH_READ, "list_transactions", search="EGGS")
-        self.assertEqual([t["amount"] for t in data["transactions"]], ["-20.00"])
+        self.assertEqual([(t["type"], t["amount"]) for t in data["transactions"]], [("income", "20.00")])
 
         data = self.call(self.RO, "list_transactions", search="veg")
         self.assertEqual(len(data["transactions"]), 1)
@@ -257,15 +268,29 @@ class ReadToolTests(LedgerMCPTestCase):
             self.RO, "list_transactions", date_from="2026-05-01", date_to="2026-05-31", category_id=self.groceries.id
         )
         self.assertEqual([t["date"] for t in data["transactions"]], ["2026-05-04", "2026-05-03"])
-        self.assertEqual(data["total_amount"], "100.50")
+        self.assertEqual((data["total_expenses"], data["total_income"]), ("120.50", "20.00"))
 
         page = self.call(self.RO, "list_transactions", limit=2, offset=1)
-        self.assertEqual(page["total"], 11)  # 8 entered + 3 phone plan entries
+        self.assertEqual(page["total"], 13)  # 10 entered + 3 phone plan entries
         self.assertEqual(len(page["transactions"]), 2)
         self.assertTrue(page["has_more"])
         self.assertEqual(self.call(self.RO, "list_transactions", limit=10_000)["limit"], 500)
 
+    def test_list_transactions_by_type(self):
+        data = self.call(self.RO, "list_transactions", type="income")
+        self.assertEqual(
+            [(t["title"], t["category"]["kind"]) for t in data["transactions"]],
+            [("Pay", "income"), ("Returned eggs", "budget"), ("Pay", "income")],
+        )
+        self.assertEqual((data["total_expenses"], data["total_income"]), ("0.00", "6220.00"))
+
+        data = self.call(self.RO, "list_transactions", type="Expense", month="2026-04")
+        self.assertEqual(data["total"], 4)
+        self.assertEqual({t["type"] for t in data["transactions"]}, {"expense"})
+        self.assertEqual((data["total_expenses"], data["total_income"]), ("1090.00", "0.00"))
+
     def test_list_transactions_rejects_bad_filters(self):
+        self.assertIn('"expense", "income"', self.call_error(self.RO, "list_transactions", type="refund"))
         self.assertIn("2026-05", self.call_error(self.RO, "list_transactions", month="May"))
         self.assertIn("YYYY-MM-DD", self.call_error(self.RO, "list_transactions", date_from="20/05/2026"))
         self.assertIn("no category with id 999", self.call_error(self.RO, "list_transactions", category_id=999))
@@ -287,7 +312,7 @@ class ReadToolTests(LedgerMCPTestCase):
         budgets = {b["name"]: b for b in data["budgets"]}
         self.assertEqual(set(budgets), {"Groceries", "Transport"})  # archived, unused hobby is left out
         self.assertEqual(budgets["Groceries"]["budget"], "400.00")
-        self.assertEqual(budgets["Groceries"]["spent"], "100.50")
+        self.assertEqual(budgets["Groceries"]["spent"], "100.50")  # net of the returned eggs
         self.assertEqual(budgets["Groceries"]["left"], "299.50")
         self.assertFalse(budgets["Groceries"]["over"])
         self.assertEqual(budgets["Transport"]["spent"], "30.00")
@@ -307,6 +332,10 @@ class ReadToolTests(LedgerMCPTestCase):
                 }
             ],
         )
+        self.assertEqual(data["incomes"], [{"category_id": self.salary.id, "name": "Salary", "received": "3200.00"}])
+        # Out is budgets and funds, net of money back.
+        self.assertEqual(data["flow"], {"income": "3200.00", "out": "130.50", "net": "3069.50"})
+        self.assertNotIn("currency", data)
 
     def test_month_summary_past_month(self):
         data = self.call(self.OAUTH_READ, "get_month_summary", month="2026-04")
@@ -318,13 +347,15 @@ class ReadToolTests(LedgerMCPTestCase):
         self.assertEqual(budgets["Transport"]["spent"], "140.00")  # train pass + phone plan
         self.assertEqual(data["funds"][0]["spent"], "500.00")
         self.assertEqual(data["funds"][0]["balance"], "200.00")
+        self.assertEqual(data["incomes"][0]["received"], "3000.00")
+        self.assertEqual(data["flow"], {"income": "3000.00", "out": "1090.00", "net": "1910.00"})
 
     def test_budget_analysis(self):
         data = self.call(self.RO, "get_budget_analysis", months=5)
         self.assertEqual(data["months"], ["2026-01", "2026-02", "2026-03", "2026-04", "2026-05"])
         self.assertEqual(data["current_month"], "2026-05")
         cats = {c["name"]: c for c in data["categories"]}
-        self.assertEqual(set(cats), {"Groceries", "Transport"})
+        self.assertEqual(set(cats), {"Groceries", "Transport"})  # income categories are only in flows
         groceries = cats["Groceries"]
         self.assertEqual((groceries["months_over"], groceries["months_counted"]), (2, 4))
         self.assertTrue(groceries["consistently_over"])
@@ -344,6 +375,21 @@ class ReadToolTests(LedgerMCPTestCase):
         self.assertEqual(holiday["avg_spent"], "125.00")
         self.assertFalse(holiday["draining"])
 
+        flows = data["flows"]
+        self.assertEqual(
+            [(f["month"], f["income"], f["out"], f["net"], f["partial"]) for f in flows["by_month"]],
+            [
+                ("2026-01", "0.00", "380.00", "-380.00", False),
+                ("2026-02", "0.00", "420.00", "-420.00", False),
+                ("2026-03", "0.00", "330.00", "-330.00", False),
+                ("2026-04", "3000.00", "1090.00", "1910.00", False),
+                ("2026-05", "3200.00", "130.50", "3069.50", True),
+            ],
+        )
+        # Averages over the four complete months.
+        self.assertEqual(flows["months_counted"], 4)
+        self.assertEqual((flows["avg_income"], flows["avg_out"], flows["avg_net"]), ("750.00", "555.00", "195.00"))
+
         self.assertIn("between 1 and 36", self.call_error(self.RO, "get_budget_analysis", months=0))
 
     def test_list_recurring(self):
@@ -351,6 +397,7 @@ class ReadToolTests(LedgerMCPTestCase):
         self.assertEqual(len(rules), 1)
         rule = rules[0]
         self.assertEqual(rule["title"], "Phone plan")
+        self.assertEqual(rule["type"], "expense")
         self.assertEqual(rule["amount"], "30.00")
         self.assertEqual(rule["category"]["name"], "Transport")
         self.assertEqual((rule["every"], rule["unit"]), (1, "month"))
@@ -389,13 +436,14 @@ class ScopeTests(LedgerMCPTestCase):
             self.OAUTH_WRITE_ONLY, "add_transaction", amount="4.20", title="Coffee", category_id=self.groceries.id
         )
         self.assertEqual(data["transaction"]["amount"], "4.20")
+        self.assertEqual(data["transaction"]["type"], "expense")
 
 
 class WriteToolTests(LedgerMCPTestCase):
     def test_add_transaction_defaults(self):
         data = self.call(self.RW, "add_transaction", amount=12.5, title="  Bakery  ", category_id=self.groceries.id)
         tx = Transaction.objects.get(pk=data["transaction"]["id"])
-        self.assertEqual(tx.amount, Decimal("12.50"))
+        self.assertEqual((tx.type, tx.amount), (Transaction.Type.EXPENSE, Decimal("12.50")))
         self.assertEqual(tx.title, "Bakery")
         self.assertEqual(tx.date, TODAY)
         self.assertEqual(tx.month, date(2026, 5, 1))
@@ -438,6 +486,35 @@ class WriteToolTests(LedgerMCPTestCase):
         self.assertEqual(data["category_month"]["balance"], "300.00")
         self.assertNotIn("budget", data["category_month"])
 
+        # Income in a fund is money put into it.
+        data = self.call(
+            self.RW, "add_transaction", amount=80, title="Birthday money", category_id=self.holiday.id, type="income"
+        )
+        self.assertEqual(data["transaction"]["type"], "income")
+        self.assertEqual((data["category_month"]["spent"], data["category_month"]["balance"]), ("-30.00", "380.00"))
+
+    def test_add_income(self):
+        # type follows the category when left out.
+        data = self.call(self.OAUTH_RW, "add_transaction", amount="250", title="Bonus", category_id=self.salary.id)
+        tx = Transaction.objects.get(pk=data["transaction"]["id"])
+        self.assertEqual((tx.type, tx.amount), (Transaction.Type.INCOME, Decimal("250.00")))
+        self.assertEqual(data["transaction"]["amount"], "250.00")
+        self.assertEqual(
+            data["category_month"],
+            {"category_id": self.salary.id, "name": "Salary", "kind": "income", "month": "2026-05", "received": "3450.00"},
+        )
+        summary = self.call(self.RO, "get_month_summary")
+        self.assertEqual(summary["flow"], {"income": "3450.00", "out": "130.50", "net": "3319.50"})
+
+    def test_add_money_back_to_a_budget(self):
+        data = self.call(
+            self.RW, "add_transaction", amount="10.50", title="Refund", category_id=self.groceries.id, type="income"
+        )
+        self.assertEqual((data["category_month"]["spent"], data["category_month"]["left"]), ("90.00", "310.00"))
+        summary = self.call(self.RO, "get_month_summary")
+        self.assertEqual(summary["flow"]["income"], "3200.00")  # money back is not income
+        self.assertEqual(summary["flow"]["out"], "120.00")
+
     def test_add_transaction_validation(self):
         entered = Transaction.objects.filter(recurring=None)  # each call also generates due recurring entries
         before = entered.count()
@@ -445,8 +522,14 @@ class WriteToolTests(LedgerMCPTestCase):
             ({"category_id": 999}, "no category with id 999"),
             ({"category_id": self.hobby.id}, "archived"),
             ({"amount": "12.345"}, "at most 2 decimal places"),
-            ({"amount": "S$12"}, "plain number"),
-            ({"amount": 0}, "must not be zero"),
+            ({"amount": "S$12"}, "plain positive number"),
+            ({"amount": "$12"}, "plain positive number"),
+            ({"amount": "1,200"}, "plain positive number"),
+            ({"amount": 0}, "more than 0"),
+            ({"amount": "-5"}, 'type "income"'),
+            ({"type": "refund"}, '"expense", "income"'),
+            ({"type": ""}, '"expense", "income"'),
+            ({"category_id": self.salary.id, "type": "expense"}, "Salary is for income. Pick another category"),
             ({"title": "   "}, "title must not be empty"),
             ({"date": "2026-02-30"}, "YYYY-MM-DD"),
             ({"month": "2026-13"}, "YYYY-MM"),
@@ -464,6 +547,35 @@ class WriteToolTests(LedgerMCPTestCase):
         self.assertEqual(self.weekly.note, "")
         self.assertEqual(self.weekly.title, "Weekly groceries")
         self.assertEqual(self.weekly.created_by, self.sam)
+
+    def test_update_transaction_type(self):
+        data = self.call(self.RW, "update_transaction", id=self.eggs.id, type="expense")
+        self.assertEqual(data["changed"], ["type"])
+        self.assertEqual(data["transaction"]["type"], "expense")
+        self.assertEqual(data["category_month"]["spent"], "140.50")
+        self.eggs.refresh_from_db()
+        self.assertEqual((self.eggs.type, self.eggs.amount), (Transaction.Type.EXPENSE, Decimal("20.00")))
+        self.assertIn(
+            '"expense", "income"', self.call_error(self.RW, "update_transaction", id=self.eggs.id, type="refund")
+        )
+        self.assertIn("more than 0", self.call_error(self.RW, "update_transaction", id=self.eggs.id, amount="-20"))
+
+    def test_update_cannot_leave_an_expense_in_an_income_category(self):
+        message = "Salary is for income. Pick another category"
+        self.assertIn(message, self.call_error(self.RW, "update_transaction", id=self.pay.id, type="expense"))
+        self.assertIn(
+            message, self.call_error(self.RW, "update_transaction", id=self.weekly.id, category_id=self.salary.id)
+        )
+        self.pay.refresh_from_db()
+        self.weekly.refresh_from_db()
+        self.assertEqual(self.pay.type, Transaction.Type.INCOME)
+        self.assertEqual(self.weekly.category, self.groceries)
+
+        data = self.call(
+            self.RW, "update_transaction", id=self.weekly.id, category_id=self.salary.id, type="income"
+        )
+        self.assertEqual(data["changed"], ["category", "type"])
+        self.assertEqual(data["category_month"]["received"], "3320.50")
 
     def test_update_date_moves_month_unless_it_counted_elsewhere(self):
         self.call(self.RW, "update_transaction", id=self.weekly.id, date="2026-04-30")
@@ -492,6 +604,6 @@ class WriteToolTests(LedgerMCPTestCase):
     def test_delete_transaction(self):
         data = self.call(self.OAUTH_RW, "delete_transaction", id=self.weekly.id)
         self.assertEqual(data["deleted"]["title"], "Weekly groceries")
-        self.assertEqual(data["category_month"]["spent"], "-20.00")
+        self.assertEqual(data["category_month"]["spent"], "-20.00")  # only the returned eggs are left
         self.assertFalse(Transaction.objects.filter(pk=self.weekly.id).exists())
         self.assertIn("no transaction", self.call_error(self.RW, "delete_transaction", id=self.weekly.id))

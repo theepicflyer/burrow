@@ -5,7 +5,7 @@
 <c-burrow.habitat kind="river" mood="happy">
   <span class="bh-habitat__eyebrow">Household</span>
   <h1 class="page-title">Settings</h1>
-  <p class="bh-habitat__sub">Categories, budgets and funds, recurring spends</p>
+  <p class="bh-habitat__sub">Categories, budgets, funds and recurring</p>
 </c-burrow.habitat>
 
 <div class="stack">
@@ -35,15 +35,29 @@
         <span class="setting__value {% if r.balance < 0 %}over-text{% endif %}">{% money r.balance %}</span>
       </a>
     {% empty %}
-      <p class="small muted">No funds yet. A fund grows by a set amount each month, for spends that come in lumps: car servicing, gifts, travel.</p>
+      <p class="small muted">No funds yet. A fund grows by a set amount each month, for costs that come in lumps: car servicing, gifts, travel.</p>
     {% endfor %}
     <div class="actions" style="margin-top:12px"><a class="bh-btn bh-btn--secondary bh-btn--sm" href="{% url 'ledger:category_new' %}?kind=fund">{% icon 'plus' 18 %} Add a fund</a></div>
+  </section>
+
+  <section class="bh-card" aria-labelledby="income-title">
+    <div class="bh-card__head"><h2 class="bh-card__title section-title" id="income-title">Income</h2></div>
+    {% for r in income_rows %}
+      <a class="setting" href="{% url 'ledger:category' r.cat.id %}">
+        <span class="tile tile--in" aria-hidden="true">{{ r.cat.name|first|upper }}</span>
+        <span class="grow setting__title">{{ r.cat.name }}</span>
+        {% icon 'chevron-right' 20 %}
+      </a>
+    {% empty %}
+      <p class="small muted">No income categories yet. Add one for pay, interest or anything else coming in.</p>
+    {% endfor %}
+    <div class="actions" style="margin-top:12px"><a class="bh-btn bh-btn--secondary bh-btn--sm" href="{% url 'ledger:category_new' %}?kind=income">{% icon 'plus' 18 %} Add income category</a></div>
   </section>
 
   <section class="bh-card" aria-labelledby="rec-title">
     <a class="setting" href="{% url 'ledger:recurring' %}">
       <span class="tile" aria-hidden="true">{% icon 'repeat' 22 %}</span>
-      <span class="grow"><span class="setting__title" id="rec-title">Recurring spends</span><br><span class="small muted">{{ recurring_count }} active</span></span>
+      <span class="grow"><span class="setting__title" id="rec-title">Recurring</span><br><span class="small muted">{{ recurring_count }} active</span></span>
       {% icon 'chevron-right' 20 %}
     </a>
     {% if archived_rows %}
@@ -67,20 +81,12 @@
           <label><input type="radio" name="theme" value="dark"><span class="bh-chip">{% icon 'moon' 16 %} Dark</span></label>
         </div>
       </div>
-      <form method="post" action="{% url 'ledger:settings_save' %}" class="row row--wrap" style="align-items:flex-end">
-        {% csrf_token %}
-        <div class="field grow">
-          <label for="id_currency">Currency symbol</label>
-          <input class="input" id="id_currency" name="currency" value="{{ settings_form.currency.value }}" maxlength="8">
-        </div>
-        <button class="bh-btn bh-btn--secondary" type="submit">Save</button>
-      </form>
     </div>
   </section>
 
   <section class="bh-card" id="agents" aria-labelledby="agents-title">
     <div class="bh-card__head"><h2 class="bh-card__title section-title" id="agents-title">Agents (MCP)</h2></div>
-    <p class="small muted" style="margin-top:0">Connect an AI agent to read your spends and budgets. Add this URL as a custom connector; claude.ai signs in with your Burrow login. Command-line clients can use a token instead.</p>
+    <p class="small muted" style="margin-top:0">Connect an AI agent to read your transactions and budgets. Add this URL as a custom connector; claude.ai signs in with your Burrow login. Command-line clients can use a token instead.</p>
     <code class="code">{{ mcp_url }}</code>
     {% if new_token %}
       <div class="note note--tint" style="margin-top:12px">

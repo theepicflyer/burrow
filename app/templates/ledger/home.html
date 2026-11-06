@@ -59,10 +59,10 @@
       </div>
       <div class="meters">
         {% for b in status.budgets %}
-          <a class="meter-link" href="{% url 'ledger:spends' %}?category={{ b.category.id }}&month={{ month|date:'Y-m' }}">
+          <a class="meter-link" href="{% url 'ledger:history' %}?category={{ b.category.id }}&month={{ month|date:'Y-m' }}">
             {% widthratio b.budget b.spent 100 as limit %}
             <c-burrow.meter label="{{ b.category.name }}" :percent="b.percent" :over="b.over" :limit="limit"
-              value_text="{% money b.spent %} / {% money b.budget %}{% if b.over %} · over{% endif %}" />
+              value_text="{% if b.spent < 0 %}{% money b.spent|neg %} back{% else %}{% money b.spent %}{% endif %} / {% money b.budget %}{% if b.over %} · over{% endif %}" />
           </a>
         {% endfor %}
       </div>
@@ -71,6 +71,27 @@
   </div>
 
   <div class="stack">
+    {% if status.incomes or status.income %}
+    <section class="bh-card" aria-labelledby="flow-title">
+      <div class="bh-card__head">
+        <h2 class="bh-card__title section-title" id="flow-title">In and out</h2>
+        <a class="card-link" href="{% url 'ledger:history' %}?type=income&month={{ month|date:'Y-m' }}">Income</a>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><span class="kpi__label">Income</span><span class="kpi__value in-text">{% money status.income %}</span></div>
+        <div class="kpi"><span class="kpi__label">Spent</span><span class="kpi__value">{% money status.out %}</span><span class="kpi__sub">budgets and funds</span></div>
+        <div class="kpi"><span class="kpi__label">{% if status.net < 0 %}Short{% else %}Left over{% endif %}</span><span class="kpi__value{% if status.net < 0 %} over-text{% endif %}">{% money status.net %}</span></div>
+      </div>
+      {% if status.incomes|length > 1 %}
+      <div class="list list--flat" style="margin-top:8px">
+        {% for i in status.incomes %}
+          <a class="setting" href="{% url 'ledger:category' i.category.id %}"><span class="grow">{{ i.category.name }}</span><span class="setting__value in-text">{% money i.received %}</span></a>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </section>
+    {% endif %}
+
     {% if status.funds %}
     <section class="bh-card" aria-labelledby="funds-title">
       <div class="bh-card__head">
@@ -102,7 +123,7 @@
               <span class="spend__title">{{ r.title }}</span>
               <span class="spend__sub">{{ d|date:"D j M" }} · {{ r.category.name }}</span>
             </span>
-            <span class="spend__amount">{% money r.amount signed=True %}</span>
+            <span class="spend__amount{% if r.type == 'income' %} is-in{% endif %}">{% money r.amount signed=True type=r.type %}</span>
           </a>
         {% endfor %}
       </div>
@@ -112,15 +133,15 @@
     <section class="bh-card" aria-labelledby="recent-title">
       <div class="bh-card__head">
         <h2 class="bh-card__title section-title" id="recent-title">Latest in {{ month|date:"F" }}</h2>
-        <a class="card-link" href="{% url 'ledger:spends' %}?month={{ month|date:'Y-m' }}">See all</a>
+        <a class="card-link" href="{% url 'ledger:history' %}?month={{ month|date:'Y-m' }}">See all</a>
       </div>
       {% if recent %}
         <div class="list list--flat">
-          {% for t in recent %}{% include "ledger/partials/spend_row.html" with show_date=True %}{% endfor %}
+          {% for t in recent %}{% include "ledger/partials/transaction_row.html" with show_date=True %}{% endfor %}
         </div>
       {% else %}
         <c-ledger.empty who="kacang" mood="sleepy" title="Nothing spent yet">
-          Spends you add for {{ month|date:"F" }} show up here.
+          What you add for {{ month|date:"F" }} shows up here.
         </c-ledger.empty>
       {% endif %}
     </section>

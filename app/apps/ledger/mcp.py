@@ -38,7 +38,7 @@ from oauth2_provider.models import get_access_token_model
 
 from apps.api.models import APIToken
 from apps.ledger import services
-from apps.ledger.models import Category, LedgerSettings, Recurring, Transaction
+from apps.ledger.models import Category, Recurring, Transaction, Type
 from apps.ledger.months import month_of
 
 READ_SCOPE = "mcp:read"
@@ -47,17 +47,20 @@ MAX_LIMIT = 500
 MAX_ANALYSIS_MONTHS = 36
 ZERO = Decimal("0")
 CENT = Decimal("0.01")
+CURRENCY = "$"
+TYPES = ", ".join(f'"{t}"' for t in Type.values)
 
 INSTRUCTIONS = """\
-Burrow is a household spending ledger, shared by everyone in the household. \
-It is a list of spends; each transaction sits in one category. Budget \
-categories have a monthly budget; fund categories are sinking funds topped up \
-on the 1st of each month and drawn down by what is spent from them. A \
-transaction has a date (when it happened) and a month it counts toward \
-(normally the date's month). Positive amounts are money spent, negative \
-amounts are refunds or money paid into a fund. Call get_ledger_info first for \
-today's date, the currency and these conventions; look up category ids with \
-list_categories before add_transaction."""
+Burrow is a household money ledger, shared by everyone in the household. Each \
+transaction is an expense or income, always with a positive amount in dollars \
+($), and sits in one category. Budget categories have a monthly budget; fund \
+categories are sinking funds topped up on the 1st of each month and drawn down \
+by what is spent from them; income categories hold money coming in, such as \
+salary. Income in a budget or fund category is money back: a refund, or money \
+put into a fund. A transaction has a date (when it happened) and a month it \
+counts toward (normally the date's month). Call get_ledger_info first for \
+today's date and these conventions; look up category ids with list_categories \
+before add_transaction."""
 
 global_mcp_server.append_instructions(INSTRUCTIONS)
 
@@ -151,7 +154,7 @@ def _parse_month(value: str, field: str = "month") -> Date:
 
 def _parse_amount(value) -> Decimal:
     bad = ToolInputError(
-        f"amount must be a plain number with at most 2 decimal places, like 12.50 or -3; got {value!r}."
+        f"amount must be a plain positive number with at most 2 decimal places, like 12.50; got {value!r}."
     )
     if isinstance(value, bool):
         raise bad
@@ -163,9 +166,19 @@ def _parse_amount(value) -> Decimal:
         raise bad
     if amount != amount.quantize(CENT):
         raise bad
-    if not amount:
-        raise ToolInputError("amount must not be zero.")
+    if amount <= 0:
+        raise ToolInputError(
+            'amount must be more than 0. Amounts are always positive: for money back or '
+            'income, pass the positive amount with type "income".'
+        )
     return amount.quantize(CENT)
+
+
+def _parse_type(value, field: str = "type") -> str:
+    text = value.strip().lower() if isinstance(value, str) else ""
+    if text in Type.values:
+        return text
+    raise ToolInputError(f"{field} must be one of {TYPES}; got {value!r}.")
 
 
 def _clean_title(value: str) -> str:
@@ -187,6 +200,15 @@ def _get_category(category_id: int, *, for_entry: bool = False) -> Category:
             f"transactions. Pick an active category from list_categories."
         )
     return category
+
+
+def _check_type_fits(category: Category, kind: str) -> None:
+    """An income category takes only income (as in the app's entry form)."""
+    if category.is_income and kind == Type.EXPENSE:
+        raise ToolInputError(
+            f'{category.name} is for income. Pick another category, or use type "income" to record '
+            f"money received."
+        )
 
 
 def _get_transaction(transaction_id: int) -> Transaction:
@@ -219,6 +241,7 @@ def _transaction(tx: Transaction) -> dict:
         "date": tx.date.isoformat(),
         "month": _month(tx.month),
         "title": tx.title,
+        "type": tx.type,
         "amount": _money(tx.amount),
         "category": {"id": tx.category_id, "name": tx.category.name, "kind": tx.category.kind},
         "note": tx.note,
@@ -228,12 +251,14 @@ def _transaction(tx: Transaction) -> dict:
 
 
 def _category_month(category: Category, month: Date) -> dict:
-    """Where ``category`` stands for ``month``: a budget's budget/spent/left, or a
-    fund's top-up/spent/month-end balance."""
+    """Where ``category`` stands for ``month``: a budget's budget/spent/left, a
+    fund's top-up/spent/month-end balance, or what an income category received."""
     book = services.Book()
     spent = book.spent(category.id, month)
     out = {"category_id": category.id, "name": category.name, "kind": category.kind, "month": _month(month)}
-    if category.is_fund:
+    if category.is_income:
+        out["received"] = _money(book.received(category.id, month))
+    elif category.is_fund:
         out |= {
             "topup": _money(book.amount(category.id, month)),
             "spent": _money(spent),
@@ -260,11 +285,15 @@ def _cell(cell: services.Cell) -> dict:
     }
 
 
+def _flow(income: Decimal, out: Decimal) -> dict:
+    return {"income": _money(income), "out": _money(out), "net": _money(income - out)}
+
+
 # --------------------------------------------------------------------------- tools
 
 
 class LedgerTools(MCPToolset):
-    """Read the household ledger and, with write access, log spends."""
+    """Read the household ledger and, with write access, log expenses and income."""
 
     def _add_tools_to(self, tool_manager):
         tools = super()._add_tools_to(tool_manager)
@@ -298,13 +327,13 @@ class LedgerTools(MCPToolset):
 
     @_tool()
     def get_ledger_info(self) -> dict:
-        """Start here. Returns the ledger's currency symbol, today's date and the
+        """Start here. Returns the currency symbol ($), today's date and the
         current month (in the household's timezone), who you are signed in as,
         whether this connection may change the ledger (can_write), and how the
         ledger's fields work. Call it before the other tools."""
         today = self._today()
         return {
-            "currency": LedgerSettings.load().currency,
+            "currency": CURRENCY,
             "today": today.isoformat(),
             "current_month": _month(today),
             "signed_in_as": _user(self.request.user),
@@ -312,10 +341,26 @@ class LedgerTools(MCPToolset):
             "conventions": {
                 "shared": "One ledger shared by the whole household; everyone sees and edits everything.",
                 "amount": (
-                    "Strings with 2 decimal places in the ledger's currency. Positive = money spent; "
-                    "negative = money back (a refund, or money paid into a fund)."
+                    "Strings with 2 decimal places, in dollars ($). Always positive; a transaction's "
+                    "type says which way the money went."
                 ),
-                "date": "YYYY-MM-DD: the day the spend happened or was billed.",
+                "type": {
+                    "expense": "Money spent.",
+                    "income": (
+                        "Money received. In an income category it is income (salary and the like); in "
+                        "a budget or fund category it is money back: a refund, or money put into a fund."
+                    ),
+                },
+                "spent": (
+                    "A budget's or fund's spent is net: its expenses minus its money back, so it can "
+                    "be negative."
+                ),
+                "flow": (
+                    "Money in and out of the household: income is what the income categories "
+                    "received; out is what budgets and funds spent, net of money back; net is "
+                    "income minus out."
+                ),
+                "date": "YYYY-MM-DD: the day the transaction happened or was billed.",
                 "month": (
                     "YYYY-MM: the month a transaction counts toward. It is the date's month unless "
                     "set otherwise (May's bill paid on 10 June can count toward May). Budgets and "
@@ -327,10 +372,15 @@ class LedgerTools(MCPToolset):
                         "A sinking fund: topped up by a monthly amount on the 1st, lowered by what "
                         "is spent from it. Its balance carries over from month to month."
                     ),
+                    "income": (
+                        "Money coming in, such as salary. Takes income only; no budget, just what it "
+                        "received each month."
+                    ),
                 },
                 "monthly_amount": (
-                    "A category's budget (or a fund's top-up) for a month. Changes apply from a "
-                    "given month on; earlier months keep the amount they had."
+                    "A budget category's budget (or a fund's top-up) for a month. Changes apply from "
+                    "a given month on; earlier months keep the amount they had. Income categories "
+                    "have none."
                 ),
                 "recurring": (
                     "Recurring rules create their transaction on each scheduled date once it arrives; "
@@ -341,16 +391,17 @@ class LedgerTools(MCPToolset):
 
     @_tool()
     def list_categories(self, include_archived: bool = False) -> dict:
-        """List the spending categories. Every transaction belongs to exactly one
+        """List the categories. Every transaction belongs to exactly one
         category, so use this to find the category_id for add_transaction.
 
-        Each category has kind "budget" (everyday spending with a monthly budget)
-        or "fund" (a sinking fund, topped up by a fixed amount on the 1st of each
-        month; spending from it lowers its balance). monthly_amount is this
-        month's budget, or this month's top-up for a fund. Funds also return
-        balance (the balance at the end of the current month: this month's
-        top-up is in, and everything spent from it so far is out) and target
-        (what it is saving up to, or null).
+        Each category has kind "budget" (everyday spending with a monthly
+        budget), "fund" (a sinking fund, topped up by a fixed amount on the 1st
+        of each month; spending from it lowers its balance) or "income" (money
+        coming in, such as salary). monthly_amount is this month's budget, or
+        this month's top-up for a fund; it is null for an income category.
+        Funds also return balance (the balance at the end of the current month:
+        this month's top-up is in, and everything spent from it so far is out,
+        net of money put in) and target (what it is saving up to, or null).
 
         Args:
             include_archived: also return archived categories, which no longer
@@ -368,7 +419,7 @@ class LedgerTools(MCPToolset):
                 "name": cat.name,
                 "kind": cat.kind,
                 "archived": cat.archived,
-                "monthly_amount": _money(book.amount(cat.id, current)),
+                "monthly_amount": None if cat.is_income else _money(book.amount(cat.id, current)),
             }
             if cat.is_fund:
                 row["balance"] = _money(book.fund_balance(cat, current))
@@ -383,6 +434,7 @@ class LedgerTools(MCPToolset):
         date_from: str | None = None,
         date_to: str | None = None,
         category_id: int | None = None,
+        type: str | None = None,
         search: str | None = None,
         limit: int = 100,
         offset: int = 0,
@@ -396,19 +448,25 @@ class LedgerTools(MCPToolset):
             date_from: "YYYY-MM-DD"; only transactions dated on or after this day.
             date_to: "YYYY-MM-DD"; only transactions dated on or before this day.
             category_id: only this category (ids from list_categories).
+            type: "expense" or "income"; only transactions of this type.
             search: case-insensitive text to find in the title or note.
             limit: page size, default 100, at most 500.
             offset: how many matching transactions to skip, for paging.
 
-        Returns total (how many transactions match), total_amount (the sum of
-        every matching amount, not just this page), has_more, and the page of
+        Returns total (how many transactions match), total_expenses and
+        total_income (the sums of every matching expense and income, not just
+        this page; for a budget or fund category, net spending is
+        total_expenses minus total_income), has_more, and the page of
         transactions. Each has id, date (when it happened), month (the month it
-        counts toward), title, amount (positive = spent, negative = refund or
-        money paid into a fund), category, note, recurring_id (the recurring
-        rule that created it, or null) and created_by.
+        counts toward), title, type ("expense" or "income"; income in a budget
+        or fund category is money back), amount (always positive), category,
+        note, recurring_id (the recurring rule that created it, or null) and
+        created_by.
         """
         self._start()
         qs = Transaction.objects.select_related("category", "created_by")
+        if type is not None:
+            qs = qs.filter(type=_parse_type(type))
         if month:
             qs = qs.filter(month=_parse_month(month))
         start = _parse_date(date_from, "date_from") if date_from else None
@@ -430,9 +488,13 @@ class LedgerTools(MCPToolset):
 
         total = qs.count()
         page = [_transaction(tx) for tx in qs[offset : offset + limit]]
+        sums = qs.aggregate(
+            expenses=Sum("amount", filter=Q(type=Type.EXPENSE)), income=Sum("amount", filter=Q(type=Type.INCOME))
+        )
         return {
             "total": total,
-            "total_amount": _money(qs.aggregate(total=Sum("amount"))["total"]),
+            "total_expenses": _money(sums["expenses"]),
+            "total_income": _money(sums["income"]),
             "limit": limit,
             "offset": offset,
             "has_more": offset + len(page) < total,
@@ -441,19 +503,23 @@ class LedgerTools(MCPToolset):
 
     @_tool()
     def get_month_summary(self, month: str | None = None) -> dict:
-        """How the household is doing against its budgets in one month.
+        """How the household is doing against its budgets in one month, and what
+        came in and went out.
 
         Args:
             month: "YYYY-MM"; defaults to the current month.
 
-        Returns budgets: for each budget category, budget, spent (net of
-        refunds), left (budget minus spent; negative when over), over and
-        percent_used; budget_totals across all budget categories; and funds: for
-        each fund, topup (this month's top-up), spent (spent from it this month)
-        and balance (its balance at the end of the month). Spending counts by
-        the month a transaction counts toward, not its date. Fund spending is
-        not part of budget_totals. Archived categories only appear when they
-        have spending that month. For the current month it also returns
+        Returns budgets: for each budget category, budget, spent (net of money
+        back), left (budget minus spent; negative when over), over and
+        percent_used; budget_totals across all budget categories; funds: for
+        each fund, topup (this month's top-up), spent (spent from it this
+        month, net of money put in) and balance (its balance at the end of the
+        month); incomes: for each income category, received; and flow: income
+        (received by all income categories), out (spent from budgets and funds,
+        net of money back) and net (income minus out). Everything counts by the
+        month a transaction counts toward, not its date. Fund spending is not
+        part of budget_totals. Archived categories only appear when they have
+        transactions that month. For the current month it also returns
         days_left, elapsed (share of the month gone, 0-1) and, in
         budget_totals, ahead_of_pace (a larger share of the total budget is
         spent than the share of the month that has passed).
@@ -471,7 +537,6 @@ class LedgerTools(MCPToolset):
         out = {
             "month": _month(target),
             "is_current_month": target == month_of(today),
-            "currency": LedgerSettings.load().currency,
             "budgets": [
                 {
                     "category_id": line.category.id,
@@ -497,6 +562,11 @@ class LedgerTools(MCPToolset):
                 for line in status.funds
             ],
             "fund_spent_total": _money(status.fund_spent),
+            "incomes": [
+                {"category_id": line.category.id, "name": line.category.name, "received": _money(line.received)}
+                for line in status.incomes
+            ],
+            "flow": _flow(status.income, status.out),
         }
         if status.days_left is not None:
             out["days_left"] = status.days_left
@@ -507,7 +577,8 @@ class LedgerTools(MCPToolset):
     @_tool()
     def get_budget_analysis(self, end_month: str | None = None, months: int = 12) -> dict:
         """Spending against budget over several months, to spot budget categories
-        that keep running over and funds that are draining.
+        that keep running over and funds that are draining, and money in and out
+        per month.
 
         Args:
             end_month: "YYYY-MM", the last month of the window; defaults to the
@@ -527,7 +598,12 @@ class LedgerTools(MCPToolset):
         months_over, avg_spent and avg_budget; funds: each fund's month-end
         balance per month, topup_now, avg_spent (average monthly spending over
         the complete months) and draining (spending more on average than the
-        top-up puts in); and flagged: the consistently-over categories.
+        top-up puts in); flagged: the consistently-over categories; and flows:
+        per month income (received by income categories), out (spent from
+        budgets and funds, net of money back), net (income minus out) and
+        partial, with avg_income, avg_out and avg_net over the complete months
+        that had any (months_counted). Spent is always net of money back.
+        Income categories are only in flows.
         """
         today = self._start()
         end = _parse_month(end_month, "end_month") if end_month else month_of(today)
@@ -537,7 +613,6 @@ class LedgerTools(MCPToolset):
         return {
             "months": [_month(m) for m in result.months],
             "current_month": _month(result.current) if result.current else None,
-            "currency": LedgerSettings.load().currency,
             "categories": [
                 {
                     "category_id": t.category.id,
@@ -574,16 +649,26 @@ class LedgerTools(MCPToolset):
                 for f in result.funds
             ],
             "flagged": [{"category_id": t.category.id, "name": t.category.name} for t in result.flagged],
+            "flows": {
+                "months_counted": len(result.complete_flows),
+                "avg_income": _money(result.avg_income),
+                "avg_out": _money(result.avg_out),
+                "avg_net": _money(result.avg_net),
+                "by_month": [
+                    {"month": _month(f.month), **_flow(f.income, f.out), "partial": f.partial} for f in result.flows
+                ],
+            },
         }
 
     @_tool()
     def list_recurring(self) -> dict:
-        """List the recurring spend rules (subscriptions, bills, allowances). A
+        """List the recurring rules (subscriptions, bills, allowances, salary). A
         rule creates its transaction on each date of its schedule once that date
         arrives; nothing is created ahead of time.
 
-        Each rule has its title, amount, category and note; its schedule (every
-        N week/month/year from start_date, until end_date if set); next_date
+        Each rule has its title, type ("expense" or "income", as in
+        add_transaction), amount, category and note; its schedule (every N
+        week/month/year from start_date, until end_date if set); next_date
         (when it will create its next transaction; null once the schedule has
         ended); counts_toward ("same month", or "previous month" for a bill that
         arrives after the month it belongs to) with next_counts_toward (the
@@ -599,6 +684,7 @@ class LedgerTools(MCPToolset):
                 {
                     "id": rule.id,
                     "title": rule.title,
+                    "type": rule.type,
                     "amount": _money(rule.amount),
                     "category": {"id": rule.category_id, "name": rule.category.name, "kind": rule.category.kind},
                     "note": rule.note,
@@ -625,37 +711,48 @@ class LedgerTools(MCPToolset):
         amount: float | str,
         title: str,
         category_id: int,
+        type: str | None = None,
         date: str | None = None,
         month: str | None = None,
         note: str = "",
     ) -> dict:
-        """Log a spend (or a refund) in the ledger.
+        """Log an expense or income in the ledger.
 
         Args:
-            amount: positive for money spent, negative for a refund or money paid
-                into a fund. A plain number with at most 2 decimal places, e.g.
-                12.5 or "12.50", in the ledger's currency (see get_ledger_info);
-                no currency symbol or thousands separators.
+            amount: how much, in dollars; always more than 0. A plain number with
+                at most 2 decimal places, e.g. 12.5 or "12.50"; no currency
+                symbol, sign or thousands separators.
             title: a short description, e.g. "Weekly groceries".
             category_id: the category's id from list_categories. Archived
                 categories take no new transactions.
+            type: "expense" (money spent) or "income" (money received). Leave
+                it out to follow the category: "income" for an income category
+                (salary and the like), "expense" otherwise. An income category
+                takes no expenses. Pass "income" in a budget or fund category
+                for money back: a refund, or money put into a fund.
             date: "YYYY-MM-DD", when it happened; defaults to today.
             month: "YYYY-MM", the month it counts toward; defaults to the date's
-                month. Only set it when the spend belongs to another month, e.g.
-                May's bill paid on 10 June.
+                month. Only set it when the transaction belongs to another
+                month, e.g. May's bill paid on 10 June.
             note: an optional longer note.
 
         Returns the new transaction, and category_month: where its category
         stands for that month afterwards (budget, spent and left for a budget
-        category; top-up, spent and balance for a fund).
+        category; top-up, spent and balance for a fund; received for an income
+        category). Spent is net of money back.
         """
         today = self._start()
         amount = _parse_amount(amount)
+        kind = _parse_type(type) if type is not None else None
         title = _clean_title(title)
         category = _get_category(category_id, for_entry=True)
+        if kind is None:
+            kind = Type.INCOME if category.is_income else Type.EXPENSE
+        _check_type_fits(category, kind)
         day = _parse_date(date) if date else today
         counts_toward = _parse_month(month) if month else month_of(day)
         tx = Transaction.objects.create(
+            type=kind,
             amount=amount,
             title=title,
             category=category,
@@ -673,6 +770,7 @@ class LedgerTools(MCPToolset):
         amount: float | str | None = None,
         title: str | None = None,
         category_id: int | None = None,
+        type: str | None = None,
         date: str | None = None,
         month: str | None = None,
         note: str | None = None,
@@ -682,12 +780,14 @@ class LedgerTools(MCPToolset):
 
         Args:
             id: the transaction's id (from list_transactions).
-            amount, title, category_id, date, month: as in add_transaction.
+            amount, title, category_id, type, date, month: as in add_transaction.
             note: the new note; pass "" to clear it.
 
         If you change date without month, month follows the new date, unless
         the transaction counted toward a different month than its date; then
-        that month is kept. Returns the updated transaction, the fields that
+        that month is kept. type stays as it is unless you pass it, and a
+        change that would leave an expense in an income category is refused.
+        Returns the updated transaction, the fields that
         changed, and category_month for its (new) category and month.
         """
         self._start()
@@ -702,6 +802,9 @@ class LedgerTools(MCPToolset):
         if category_id is not None and category_id != tx.category_id:
             tx.category = _get_category(category_id, for_entry=True)
             changed.append("category")
+        if type is not None:
+            tx.type = _parse_type(type)
+            changed.append("type")
         if date is not None:
             new_date = _parse_date(date)
             if month is None and not tx.counts_elsewhere:
@@ -715,7 +818,11 @@ class LedgerTools(MCPToolset):
             tx.note = note.strip()
             changed.append("note")
         if not changed:
-            raise ToolInputError("Nothing to change: pass at least one of amount, title, category_id, date, month, note.")
+            raise ToolInputError(
+                "Nothing to change: pass at least one of amount, title, category_id, type, date, month, note."
+            )
+        if "type" in changed or "category" in changed:
+            _check_type_fits(tx.category, tx.type)
         tx.save()
         return {
             "transaction": _transaction(tx),

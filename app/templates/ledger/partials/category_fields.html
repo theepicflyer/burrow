@@ -9,15 +9,16 @@
 <div class="field">
   <span class="field__label">Kind</span>
   <div class="seg" role="radiogroup">
-    <label><input type="radio" name="kind" value="budget" {% if form.kind.value != 'fund' %}checked{% endif %}><span class="bh-chip">Budget</span></label>
+    <label><input type="radio" name="kind" value="budget" {% if form.kind.value != 'fund' and form.kind.value != 'income' %}checked{% endif %}><span class="bh-chip">Budget</span></label>
     <label><input type="radio" name="kind" value="fund" {% if form.kind.value == 'fund' %}checked{% endif %}><span class="bh-chip">Sinking fund</span></label>
+    <label><input type="radio" name="kind" value="income" {% if form.kind.value == 'income' %}checked{% endif %}><span class="bh-chip">Income</span></label>
   </div>
-  <span class="field__hint">A budget is what you plan to spend each month. A fund saves a set amount every month and you spend from what has built up.</span>
+  <span class="field__hint">A budget is what you plan to spend each month. A fund saves a set amount every month and you spend from what has built up. Income is money coming in, such as pay.</span>
 </div>
-<div class="form-grid form-grid--2">
+<div class="form-grid form-grid--2 budget-only">
   <div class="field {% if form.amount.errors %}has-error{% endif %}">
     <label for="id_amount">Monthly budget or top-up</label>
-    <span class="input input--affix">{% currency %}<input id="id_amount" name="amount" inputmode="decimal" value="{{ form.amount.value|default_if_none:'' }}" placeholder="0.00"></span>
+    <span class="input input--affix">$<input id="id_amount" name="amount" inputmode="decimal" value="{{ form.amount.value|default_if_none:'' }}" placeholder="0.00"></span>
     {% for e in form.amount.errors %}<span class="field__error">{{ e }}</span>{% endfor %}
   </div>
   <div class="field">
@@ -27,12 +28,12 @@
   </div>
   <div class="field {% if form.opening_balance.errors %}has-error{% endif %}">
     <label for="id_opening_balance">Fund: opening balance</label>
-    <span class="input input--affix">{% currency %}<input id="id_opening_balance" name="opening_balance" inputmode="decimal" value="{{ form.opening_balance.value|default_if_none:'0' }}"></span>
+    <span class="input input--affix">$<input id="id_opening_balance" name="opening_balance" inputmode="decimal" value="{{ form.opening_balance.value|default_if_none:'0' }}"></span>
     <span class="field__hint">What the fund held before its first top-up.</span>
   </div>
   <div class="field {% if form.target.errors %}has-error{% endif %}">
     <label for="id_target">Fund: target</label>
-    <span class="input input--affix">{% currency %}<input id="id_target" name="target" inputmode="decimal" value="{{ form.target.value|default_if_none:'' }}" placeholder="Optional"></span>
+    <span class="input input--affix">$<input id="id_target" name="target" inputmode="decimal" value="{{ form.target.value|default_if_none:'' }}" placeholder="Optional"></span>
   </div>
 </div>
-{% if cat %}<label class="check"><input type="checkbox" name="archived" {% if form.archived.value %}checked{% endif %}> Archived (hidden from new spends)</label>{% endif %}
+{% if cat %}<label class="check"><input type="checkbox" name="archived" {% if form.archived.value %}checked{% endif %}> Archived (hidden when adding)</label>{% endif %}

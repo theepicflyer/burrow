@@ -1,21 +1,26 @@
 {% extends "ledger/base.html" %}
 {% load ledger %}
-{% block title %}Spends{% endblock %}
+{% block title %}History{% endblock %}
 {% block content %}
 <c-burrow.habitat kind="burrow" mood="{% if filtered and not count %}worried{% else %}happy{% endif %}">
-  <span class="bh-habitat__eyebrow">History</span>
-  <h1 class="page-title">Spends</h1>
-  <p class="bh-habitat__sub">{% if filtered %}{{ count }} found · {% money total %}{% else %}{{ count }} in all{% endif %}</p>
+  <span class="bh-habitat__eyebrow">Transactions</span>
+  <h1 class="page-title">History</h1>
+  <p class="bh-habitat__sub">{% if filtered %}{{ count }} found{% if spent %} · {% money spent %} out{% endif %}{% if received %} · {% money received %} in{% endif %}{% else %}{{ count }} in all{% endif %}</p>
 </c-burrow.habitat>
 
-<form class="filters" method="get" action="{% url 'ledger:spends' %}"
-      hx-get="{% url 'ledger:spends' %}" hx-trigger="input changed delay:300ms from:input[name=q], change from:select"
+<form class="filters" method="get" action="{% url 'ledger:history' %}"
+      hx-get="{% url 'ledger:history' %}" hx-trigger="input changed delay:300ms from:input[name=q], change from:select, change from:input[name=type]"
       hx-target="#results" hx-select="#results" hx-swap="outerHTML" hx-push-url="true" role="search">
   <label class="input input--affix">
     {% icon 'search' 20 %}
     <span class="sr-only">Search</span>
     <input type="search" name="q" value="{{ filters.q }}" placeholder="Search titles and notes" enterkeyhint="search">
   </label>
+  <div class="seg" role="radiogroup" aria-label="Type">
+    <label><input type="radio" name="type" value="" {% if not filters.type %}checked{% endif %}><span class="bh-chip">All</span></label>
+    <label><input type="radio" name="type" value="expense" {% if filters.type == 'expense' %}checked{% endif %}><span class="bh-chip">Expenses</span></label>
+    <label><input type="radio" name="type" value="income" {% if filters.type == 'income' %}checked{% endif %}><span class="bh-chip">Income</span></label>
+  </div>
   <div class="filters__row">
     <label><span class="sr-only">Month</span>
       <select class="select" name="month">
@@ -35,11 +40,11 @@
 
 <div id="results">
   {% if days %}
-    {% include "ledger/fragments/spend_days.html" %}
+    {% include "ledger/fragments/transaction_days.html" %}
   {% elif filtered %}
     <div class="bh-card"><c-ledger.empty who="" title="No matches">Gali dug everywhere. Try a shorter word or another month.</c-ledger.empty></div>
   {% else %}
-    <div class="bh-card"><c-ledger.empty who="" title="No spends yet">Tap the plus to add your first one.</c-ledger.empty></div>
+    <div class="bh-card"><c-ledger.empty who="" title="Nothing here yet">Tap the plus to add your first expense or income.</c-ledger.empty></div>
   {% endif %}
 </div>
 {% endblock %}

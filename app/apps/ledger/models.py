@@ -1,17 +1,20 @@
 """Burrow's household ledger.
 
 One shared ledger: every signed-in user sees and edits everything. There are no
-accounts or wallet balances; the ledger is a list of spends, each in a category.
+accounts or wallet balances; the ledger is a list of transactions (expenses and
+income), each in a category.
 
-* A ``Category`` is either a **budget** (normal spending with a monthly budget)
-  or a **fund** (a sinking fund that grows by a monthly top-up on the 1st and
-  shrinks by whatever is spent from it).
+* A ``Category`` is a **budget** (normal spending with a monthly budget), a
+  **fund** (a sinking fund that grows by a monthly top-up on the 1st and shrinks
+  by whatever is spent from it) or **income** (salary and the like).
 * The monthly amount (budget or top-up) is effective-dated in ``MonthlyAmount``:
   the amount for month M is the latest row starting on or before M. Changing it
   adds a row from that month on, so past months keep the amount they had.
-* A ``Transaction`` has a ``date`` (when it happened or was billed) and a
-  ``month`` it counts toward, which defaults to the date's month but can differ
-  (May's transport bill arrives on 10 June and counts toward May).
+* A ``Transaction`` is an expense or income with a positive amount. Income in a
+  budget or fund category is money back (a refund, or money put into a fund).
+  It has a ``date`` (when it happened or was billed) and a ``month`` it counts
+  toward, which defaults to the date's month but can differ (May's transport
+  bill arrives on 10 June and counts toward May).
 * A ``Recurring`` rule creates transactions as they fall due. Nothing is created
   ahead of time, so editing a rule changes every entry it has yet to create.
 """
@@ -31,34 +34,16 @@ from apps.ledger.months import add_months, month_of
 MONEY = {"max_digits": 14, "decimal_places": 2}
 
 
-class LedgerSettings(models.Model):
-    """Household-wide settings. A single row, loaded with ``LedgerSettings.load()``."""
-
-    currency = models.CharField(
-        _("Currency symbol"), max_length=8, default="$", help_text=_("Shown before amounts, e.g. S$")
-    )
-
-    class Meta:
-        verbose_name = _("Ledger settings")
-        verbose_name_plural = _("Ledger settings")
-
-    def save(self, *args, **kwargs):
-        self.pk = 1
-        super().save(*args, **kwargs)
-
-    @classmethod
-    def load(cls):
-        obj, _created = cls.objects.get_or_create(pk=1)
-        return obj
-
-    def __str__(self):
-        return "Ledger settings"
+class Type(models.TextChoices):
+    EXPENSE = "expense", _("Expense")
+    INCOME = "income", _("Income")
 
 
 class Category(models.Model):
     class Kind(models.TextChoices):
         BUDGET = "budget", _("Budget")
         FUND = "fund", _("Fund")
+        INCOME = "income", _("Income")
 
     name = models.CharField(_("Name"), max_length=80, unique=True)
     kind = models.CharField(_("Kind"), max_length=8, choices=Kind.choices, default=Kind.BUDGET)
@@ -92,6 +77,10 @@ class Category(models.Model):
     @property
     def is_fund(self):
         return self.kind == self.Kind.FUND
+
+    @property
+    def is_income(self):
+        return self.kind == self.Kind.INCOME
 
     def amount_for(self, month: date) -> Decimal:
         """Budget (or fund top-up) for ``month``; 0 before the first amount."""
@@ -141,9 +130,12 @@ class MonthlyAmount(models.Model):
 
 
 class Transaction(models.Model):
-    """A spend. A negative amount is money back (a refund, or money put into a fund)."""
+    """An expense or income. The amount is always positive; ``type`` gives the direction."""
 
-    amount = models.DecimalField(_("Amount"), **MONEY)
+    Type = Type
+
+    type = models.CharField(_("Type"), max_length=8, choices=Type.choices, default=Type.EXPENSE)
+    amount = models.DecimalField(_("Amount"), validators=[MinValueValidator(Decimal("0.01"))], **MONEY)
     title = models.CharField(_("Title"), max_length=200)
     category = models.ForeignKey(
         Category, on_delete=models.PROTECT, related_name="transactions", verbose_name=_("Category")
@@ -180,12 +172,21 @@ class Transaction(models.Model):
     def counts_elsewhere(self) -> bool:
         return self.month != month_of(self.date)
 
+    @property
+    def is_income(self) -> bool:
+        return self.type == Type.INCOME
+
+    @property
+    def signed(self) -> Decimal:
+        """Net spend: positive for an expense, negative for income."""
+        return -self.amount if self.is_income else self.amount
+
     def as_entry(self) -> dict:
         """What the add/edit sheet needs to open this spend."""
         return {
             "id": self.id,
-            "amount": str(abs(self.amount)),
-            "refund": self.amount < 0,
+            "type": self.type,
+            "amount": str(self.amount),
             "title": self.title,
             "category": self.category_id,
             "date": self.date.isoformat(),
@@ -202,8 +203,11 @@ class Recurring(models.Model):
         MONTH = "month", _("Month")
         YEAR = "year", _("Year")
 
+    Type = Type
+
+    type = models.CharField(_("Type"), max_length=8, choices=Type.choices, default=Type.EXPENSE)
     title = models.CharField(_("Title"), max_length=200)
-    amount = models.DecimalField(_("Amount"), **MONEY)
+    amount = models.DecimalField(_("Amount"), validators=[MinValueValidator(Decimal("0.01"))], **MONEY)
     category = models.ForeignKey(
         Category, on_delete=models.PROTECT, related_name="recurring", verbose_name=_("Category")
     )
@@ -228,8 +232,8 @@ class Recurring(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = _("Recurring spend")
-        verbose_name_plural = _("Recurring spends")
+        verbose_name = _("Recurring transaction")
+        verbose_name_plural = _("Recurring transactions")
         ordering = ["title"]
 
     def __str__(self):

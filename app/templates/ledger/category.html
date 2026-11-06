@@ -4,23 +4,23 @@
 {% block page_class %}page--wide{% endblock %}
 {% block content %}
 <c-burrow.habitat kind="oak" mood="{% if cat.is_fund %}{% if balance < 0 %}worried{% else %}happy{% endif %}{% elif history.consistently_over %}worried{% else %}happy{% endif %}">
-  <span class="bh-habitat__eyebrow"><a href="{% url 'ledger:settings' %}" style="color:inherit">Settings</a> · {% if cat.is_fund %}Fund{% else %}Budget{% endif %}{% if cat.archived %} · archived{% endif %}</span>
+  <span class="bh-habitat__eyebrow"><a href="{% url 'ledger:settings' %}" style="color:inherit">Settings</a> · {{ cat.get_kind_display }}{% if cat.archived %} · archived{% endif %}</span>
   <h1 class="page-title">{{ cat.name }}</h1>
   <p class="bh-habitat__sub">
-    {% if cat.is_fund %}{% money balance %} saved · +{% money amount_now %} a month{% else %}{% money amount_now %} a month{% if history.months_counted %} · over in {{ history.months_over }} of {{ history.months_counted }} months{% endif %}{% endif %}
+    {% if cat.is_income %}{% money received_now %} this month{% elif cat.is_fund %}{% money balance %} saved · +{% money amount_now %} a month{% else %}{% money amount_now %} a month{% if history.months_counted %} · over in {{ history.months_over }} of {{ history.months_counted }} months{% endif %}{% endif %}
   </p>
 </c-burrow.habitat>
 
 <div class="cols">
   <section class="bh-card span-2" aria-labelledby="hist-title">
     <div class="bh-card__head">
-      <h2 class="bh-card__title section-title" id="hist-title">{% if cat.is_fund %}Balance{% else %}Spent against budget{% endif %}, last 12 months</h2>
-      <button type="button" class="bh-btn bh-btn--secondary bh-btn--sm" data-add-spend data-category="{{ cat.id }}">{% icon 'plus' 18 %} Add spend</button>
+      <h2 class="bh-card__title section-title" id="hist-title">{% if cat.is_income %}Received{% elif cat.is_fund %}Balance{% else %}Spent against budget{% endif %}, last 12 months</h2>
+      <button type="button" class="bh-btn bh-btn--secondary bh-btn--sm" data-add-spend data-category="{{ cat.id }}">{% icon 'plus' 18 %} Add</button>
     </div>
-    {% if not cat.is_fund %}<div class="legend" style="margin-bottom:8px"><span class="l-spent">Spent</span><span class="l-spent-over">Spent, over</span><span class="l-budget">Budget</span></div>{% endif %}
-    <div class="chart-box chart-box--sm"><canvas data-chart="{% if cat.is_fund %}fund{% else %}budget{% endif %}" data-src="cat-data" role="img" aria-label="History"></canvas></div>
+    {% if not cat.is_fund and not cat.is_income %}<div class="legend" style="margin-bottom:8px"><span class="l-spent">Spent</span><span class="l-spent-over">Spent, over</span><span class="l-budget">Budget</span></div>{% endif %}
+    <div class="chart-box chart-box--sm"><canvas data-chart="{% if cat.is_income %}income{% elif cat.is_fund %}fund{% else %}budget{% endif %}" data-src="cat-data" role="img" aria-label="History"></canvas></div>
     {{ chart|json_script:"cat-data" }}
-    {% if not cat.is_fund and history.months_counted %}
+    {% if not cat.is_fund and not cat.is_income and history.months_counted %}
       <div class="kpis" style="margin-top:16px">
         <div class="kpi"><span class="kpi__label">Average spent</span><span class="kpi__value">{% money history.avg_spent %}</span><span class="kpi__sub">a month</span></div>
         <div class="kpi"><span class="kpi__label">Average budget</span><span class="kpi__value">{% money history.avg_budget %}</span><span class="kpi__sub">a month</span></div>
@@ -36,6 +36,7 @@
       {% include "ledger/partials/category_fields.html" %}
       <div class="actions actions--end"><button class="bh-btn bh-btn--primary" type="submit">Save {{ cat.is_fund|yesno:"fund,category" }}</button></div>
     </form>
+    {% if not cat.is_income %}
     <details style="margin-top:16px">
       <summary class="small muted">Amount history</summary>
       <div class="list list--flat">
@@ -50,6 +51,7 @@
         {% endfor %}
       </div>
     </details>
+    {% endif %}
     <form method="post" action="{% url 'ledger:category_delete' cat.id %}" style="margin-top:16px">
       {% csrf_token %}
       <button class="bh-btn bh-btn--ghost bh-btn--sm bh-btn--danger" type="submit">{% icon 'trash' 18 %} {% if recent %}Archive{% else %}Delete{% endif %} {{ cat.name }}</button>
@@ -58,13 +60,13 @@
 
   <section class="bh-card" aria-labelledby="spends-title">
     <div class="bh-card__head">
-      <h2 class="bh-card__title section-title" id="spends-title">Latest spends</h2>
-      <a class="card-link" href="{% url 'ledger:spends' %}?category={{ cat.id }}">See all</a>
+      <h2 class="bh-card__title section-title" id="spends-title">Latest</h2>
+      <a class="card-link" href="{% url 'ledger:history' %}?category={{ cat.id }}">See all</a>
     </div>
     {% if recent %}
-      <div class="list list--flat">{% for t in recent %}{% include "ledger/partials/spend_row.html" with show_date=True %}{% endfor %}</div>
+      <div class="list list--flat">{% for t in recent %}{% include "ledger/partials/transaction_row.html" with show_date=True %}{% endfor %}</div>
     {% else %}
-      <c-ledger.empty who="" title="No spends yet">Spends in {{ cat.name }} show up here.</c-ledger.empty>
+      <c-ledger.empty who="" title="Nothing yet">Transactions in {{ cat.name }} show up here.</c-ledger.empty>
     {% endif %}
   </section>
 </div>
