@@ -4,18 +4,19 @@
   Burrow
 </h1>
 
-<h4 align="center">A self-hosted household spending tracker with budgets and sinking funds.</h4>
+<h4 align="center">A self-hosted household money tracker with budgets and sinking funds.</h4>
 
-Burrow is a shared ledger for a household: everyone signs in and sees the same list of spends. It started as a hard fork of [WYGIWYH](https://github.com/eitchtee/WYGIWYH) by [Herculino Trotta](https://github.com/eitchtee) and has since been rebuilt around what a household budget needs:
+Burrow is a shared ledger for a household: everyone signs in and sees the same list of transactions, expenses and income. It started as a hard fork of [WYGIWYH](https://github.com/eitchtee/WYGIWYH) by [Herculino Trotta](https://github.com/eitchtee) and has since been rebuilt around what a household budget needs:
 
-* **Fast entry.** Amount, title, category, save. Past titles suggest their category; date, note and the rest are one tap away. Amounts can be sums (`8+4.5`).
+* **Fast entry on a phone.** One page at a time, each above the keyboard: amount on a numpad, title (a past title brings its category), category, save. Date, month, note and repeat are optional on the last page.
+* **Income and expenses.** Income categories for pay and the like; money back in a budget or fund counts against what was spent. Home and Trends show what came in, what went out and what was left over.
 * **Budgets.** Each category has a monthly budget. Changing it applies from a month on, so past months keep the budget they had.
 * **Sinking funds.** A fund grows by a set amount on the 1st of each month and shrinks by what you spend from it. Burrow tracks the balance.
 * **Date and month are separate.** A bill paid on 10 June can count toward May.
-* **Recurring spends** are added when they fall due, so editing one changes every entry still to come.
+* **Recurring** expenses and income are added when they fall due, so editing one changes every entry still to come.
 * **Trends** show which categories go over budget month after month, and whether each fund's top-up covers what you spend from it.
 * A phone-first PWA in the Burrow design system, with light and dark themes. Sign in with OIDC (for example Pocket ID).
-* An MCP server at `/mcp` with OAuth, so Claude and other agents can read the ledger and log spends. See [docs/MCP.md](docs/MCP.md).
+* An MCP server at `/mcp` with OAuth, so Claude and other agents can read the ledger and log transactions. See [docs/MCP.md](docs/MCP.md).
 
 Burrow does not track upstream. The original WYGIWYH screens are still reachable under `/legacy/` while old data is imported; see [MIGRATIONS.md](MIGRATIONS.md).
 
@@ -24,7 +25,7 @@ Burrow does not track upstream. The original WYGIWYH screens are still reachable
   <img src=".github/img/screenshots/home_dark.png" alt="Home, dark theme" width="49%" /> <img src=".github/img/screenshots/trends_dark.png" alt="Trends, dark theme" width="49%" />
 </p>
 <p align="center">
-  <img src=".github/img/screenshots/phone_home.png" alt="Phone: home" width="24%" /> <img src=".github/img/screenshots/phone_add.png" alt="Phone: add a spend" width="24%" /> <img src=".github/img/screenshots/phone_spends.png" alt="Phone: spends" width="24%" /> <img src=".github/img/screenshots/phone_trends.png" alt="Phone: trends" width="24%" />
+  <img src=".github/img/screenshots/phone_home.png" alt="Phone: home" width="24%" /> <img src=".github/img/screenshots/phone_add.png" alt="Phone: adding a transaction" width="24%" /> <img src=".github/img/screenshots/phone_history.png" alt="Phone: history" width="24%" /> <img src=".github/img/screenshots/phone_trends.png" alt="Phone: trends" width="24%" />
 </p>
 
 # Running it
@@ -126,7 +127,7 @@ Replace `https://your.burrow.domain` with the actual URL where your Burrow insta
 # Caveats
 
 * Burrow tracks spending, not wallets: there are no account balances, only fund balances.
-* One currency. Amounts are not converted.
+* One currency, shown as `$`. Amounts are not converted.
 * Everyone who can sign in sees and edits the whole ledger.
 
 # Credits and license

@@ -13,7 +13,7 @@ template, then trim what doesn't apply.
 
 End-state: the app at `/` is the new ledger (`apps.ledger`), with its own
 tables (`ledger_category`, `ledger_monthlyamount`, `ledger_transaction`,
-`ledger_recurring`, `ledger_ledgersettings`). The WYGIWYH screens move to
+`ledger_recurring`). The WYGIWYH screens move to
 `/legacy/` and their tables are left untouched. The new tables start empty, so
 the old data has to be imported once. Nothing is deleted.
 
@@ -31,8 +31,12 @@ the old data has to be imported once. Nothing is deleted.
    Read the report. Check the "Fund balances" section: each fund should say
    `ok`. A fund marked `DIFFERS` comes with a note explaining why (for example
    a monthly default that the old app had not allocated yet this month).
-   Check the skipped counts (unpaid transactions, uncategorized income,
-   soft-deleted rows, auto-allocation legs) look plausible.
+   Check the skipped counts (unpaid transactions, zero amounts, soft-deleted
+   rows, auto-allocation legs) look plausible. Income is imported too:
+   income-only categories become income categories and uncategorized income
+   goes to "Other income". The old app had no marker for a transfer between
+   accounts, so both legs are imported; the "possible transfers" note counts
+   the likely pairs and says where each leg went, to review after the import.
 3. Import for real:
 
    ```sh
