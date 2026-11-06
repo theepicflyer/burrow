@@ -1,24 +1,24 @@
 <h1 align="center">
   <img alt="Kacang the squirrel" src="./app/static/img/burrow/characters/kacang-happy.svg" width="120" />
   <br>
-  Burrow
+  Cache
 </h1>
 
 <h4 align="center">A self-hosted household money tracker with budgets and sinking funds.</h4>
 
-Burrow is a shared ledger for a household: everyone signs in and sees the same list of transactions, expenses and income. It started as a hard fork of [WYGIWYH](https://github.com/eitchtee/WYGIWYH) by [Herculino Trotta](https://github.com/eitchtee) and has since been rebuilt around what a household budget needs:
+Cache is a shared ledger for a household: everyone signs in and sees the same list of transactions, expenses and income. It started as a hard fork of [WYGIWYH](https://github.com/eitchtee/WYGIWYH) by [Herculino Trotta](https://github.com/eitchtee) and has since been rebuilt around what a household budget needs:
 
 * **Fast entry on a phone.** One page at a time, each above the keyboard: amount on a numpad, title (a past title brings its category), category, save. Date, month, note and repeat are optional on the last page.
 * **Income and expenses.** Income categories for pay and the like; money back in a budget or fund counts against what was spent. Home and Trends show what came in, what went out and what was left over.
 * **Budgets.** Each category has a monthly budget. Changing it applies from a month on, so past months keep the budget they had.
-* **Sinking funds.** A fund grows by a set amount on the 1st of each month and shrinks by what you spend from it. Burrow tracks the balance.
+* **Sinking funds.** A fund grows by a set amount on the 1st of each month and shrinks by what you spend from it. Cache tracks the balance.
 * **Date and month are separate.** A bill paid on 10 June can count toward May.
 * **Recurring** expenses and income are added when they fall due, so editing one changes every entry still to come.
 * **Trends** show which categories go over budget month after month, and whether each fund's top-up covers what you spend from it.
 * A phone-first PWA in the Burrow design system, with light and dark themes. Sign in with OIDC (for example Pocket ID).
 * An MCP server at `/mcp` with OAuth, so Claude and other agents can read the ledger and log transactions. See [docs/MCP.md](docs/MCP.md).
 
-Burrow does not track upstream. The original WYGIWYH screens are still reachable under `/legacy/` while old data is imported; see [MIGRATIONS.md](MIGRATIONS.md).
+Cache does not track upstream. The original WYGIWYH screens are still reachable under `/legacy/` while old data is imported; see [MIGRATIONS.md](MIGRATIONS.md).
 
 <p align="center">
   <img src=".github/img/screenshots/home_light.png" alt="Home, light theme" width="49%" /> <img src=".github/img/screenshots/trends_light.png" alt="Trends, light theme" width="49%" />
@@ -30,13 +30,13 @@ Burrow does not track upstream. The original WYGIWYH screens are still reachable
 
 # Running it
 
-You need [Docker](https://docs.docker.com/engine/install/) with [Compose](https://docs.docker.com/compose/install/). Images are published to `ghcr.io/theepicflyer/burrow` for amd64: `:X.Y.Z` and `:latest` for releases, `:nightly` for every merge to `main`.
+You need [Docker](https://docs.docker.com/engine/install/) with [Compose](https://docs.docker.com/compose/install/). Images are published to `ghcr.io/theepicflyer/cache` for amd64: `:X.Y.Z` and `:latest` for releases, `:nightly` for every merge to `main`.
 
 ```bash
-mkdir burrow && cd burrow
-curl -fsSLO https://raw.githubusercontent.com/theepicflyer/burrow/main/docker-compose.prod.yml
+mkdir cache && cd cache
+curl -fsSLO https://raw.githubusercontent.com/theepicflyer/cache/main/docker-compose.prod.yml
 mv docker-compose.prod.yml docker-compose.yml
-curl -fsSL https://raw.githubusercontent.com/theepicflyer/burrow/main/.env.example -o .env
+curl -fsSL https://raw.githubusercontent.com/theepicflyer/cache/main/.env.example -o .env
 $EDITOR .env    # set SECRET_KEY, SQL_PASSWORD, URL and DJANGO_ALLOWED_HOSTS
 
 docker compose up -d
@@ -45,11 +45,11 @@ docker compose up -d
 docker compose exec -it web python manage.py createsuperuser
 ```
 
-Pin a release in `docker-compose.yml` (`ghcr.io/theepicflyer/burrow:1.2.0`) rather than following `:latest` if you want to choose when to upgrade. Read the release notes first: a release that needs manual steps lists them under **Deploy actions**.
+Pin a release in `docker-compose.yml` (`ghcr.io/theepicflyer/cache:1.2.0`) rather than following `:latest` if you want to choose when to upgrade. Read the release notes first: a release that needs manual steps lists them under **Deploy actions**.
 
 ## Running locally
 
-To run Burrow on your own machine, set these in `.env`:
+To run Cache on your own machine, set these in `.env`:
 
 1. Remove `URL`
 2. Set `HTTPS_ENABLED` to `false`
@@ -64,7 +64,7 @@ For development, see [CLAUDE.md](CLAUDE.md) for the local stack, tests and relea
 | variable                      | type        | default                           | explanation                                                                                                                                                                                                                              |
 |-------------------------------|-------------|-----------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | INTERNAL_PORT                 | int         | 8000                              | The port on which the app listens on. Defaults to 8000 if not set.                                                                                                                                                                       |
-| DJANGO_ALLOWED_HOSTS          | string      | localhost 127.0.0.1               | A list of space separated domains and IPs representing the host/domain names that Burrow site can serve. [Click here](https://docs.djangoproject.com/en/5.1/ref/settings/#allowed-hosts) for more details                               |
+| DJANGO_ALLOWED_HOSTS          | string      | localhost 127.0.0.1               | A list of space separated domains and IPs representing the host/domain names that the Cache site can serve. [Click here](https://docs.djangoproject.com/en/5.1/ref/settings/#allowed-hosts) for more details                               |
 | HTTPS_ENABLED                 | true\|false | false                             | Whether to use secure cookies. If this is set to true, the cookie will be marked as “secure”, which means browsers may ensure that the cookie is only sent under an HTTPS connection                                                     |
 | URL                           | string      | http://localhost http://127.0.0.1 | A list of space separated domains and IPs (with the protocol) representing the trusted origins for unsafe requests (e.g. POST). [Click here](https://docs.djangoproject.com/en/5.1/ref/settings/#csrf-trusted-origins ) for more details |
 | SECRET_KEY                    | string      | ""                                | This is used to provide cryptographic signing, and should be set to a unique, unpredictable value.                                                                                                                                       |
@@ -88,13 +88,13 @@ For development, see [CLAUDE.md](CLAUDE.md) for the local stack, tests and relea
 
 ## OIDC Configuration
 
-Burrow supports login via OpenID Connect (OIDC) through `django-allauth`. This allows users to authenticate using an external OIDC provider.
+Cache supports login via OpenID Connect (OIDC) through `django-allauth`. This allows users to authenticate using an external OIDC provider.
 
 > [!NOTE]
 > Currently only OpenID Connect is supported as a provider, open an issue if you need something else.
 
 > [!Caution]
-> Burrow automatically connects OIDC accounts to existing local accounts with matching email addresses.
+> Cache automatically connects OIDC accounts to existing local accounts with matching email addresses.
 > This means if a user already exists with email `user@example.com` and someone logs in via OIDC with the same email, the OIDC account will be automatically linked to the existing account without requiring user confirmation.
 > This is only recommended for trusted OIDC providers that verify email addresses and where you control who can create accounts.
 
@@ -112,11 +112,11 @@ To configure OIDC, you need to set the following environment variables:
 
 **Callback URL (Redirect URI):**
 
-When configuring your OIDC provider, you will need to provide a callback URL (also known as a Redirect URI). For Burrow, the default callback URL is:
+When configuring your OIDC provider, you will need to provide a callback URL (also known as a Redirect URI). For Cache, the default callback URL is:
 
-`https://your.burrow.domain/auth/oidc/<OIDC_CLIENT_NAME>/login/callback/`
+`https://your.cache.domain/auth/oidc/<OIDC_CLIENT_NAME>/login/callback/`
 
-Replace `https://your.burrow.domain` with the actual URL where your Burrow instance is accessible. And `<OIDC_CLIENT_NAME>` with the slugfied value set in OIDC_CLIENT_NAME or the default `openid-connect` if you haven't set this variable.
+Replace `https://your.cache.domain` with the actual URL where your Cache instance is accessible. And `<OIDC_CLIENT_NAME>` with the slugfied value set in OIDC_CLIENT_NAME or the default `openid-connect` if you haven't set this variable.
 
 # Further reading
 
@@ -126,14 +126,14 @@ Replace `https://your.burrow.domain` with the actual URL where your Burrow insta
 
 # Caveats
 
-* Burrow tracks spending, not wallets: there are no account balances, only fund balances.
+* Cache tracks spending, not wallets: there are no account balances, only fund balances.
 * One currency, shown as `$`. Amounts are not converted.
 * Everyone who can sign in sees and edits the whole ledger.
 
 # Credits and license
 
-Burrow is built on [WYGIWYH](https://github.com/eitchtee/WYGIWYH), created by Herculino Trotta and its contributors. Its git history is kept in this repository up to the point Burrow forked. If WYGIWYH is useful to you, consider [sponsoring its author](https://github.com/sponsors/eitchtee).
+Cache is built on [WYGIWYH](https://github.com/eitchtee/WYGIWYH), created by Herculino Trotta and its contributors. Its git history is kept in this repository up to the point Cache forked. If WYGIWYH is useful to you, consider [sponsoring its author](https://github.com/sponsors/eitchtee).
 
-Like WYGIWYH, Burrow is licensed under the [GNU Affero General Public License v3.0](LICENSE). If you run a modified version for other people over a network, you have to offer them its source.
+Like WYGIWYH, Cache is licensed under the [GNU Affero General Public License v3.0](LICENSE). If you run a modified version for other people over a network, you have to offer them its source.
 
 Built with Django, Django REST framework, HTMX, _hyperscript, Procrastinate, Tailwind, DaisyUI, Vite, Chart.js and PostgreSQL.

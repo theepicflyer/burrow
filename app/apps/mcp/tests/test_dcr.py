@@ -87,9 +87,9 @@ class DynamicClientRegistrationTests(TestCase):
         self.assertFalse(get_application_model().objects.exists())
 
     def test_consent_name_shows_redirect_host(self):
-        resp = self.register(client_name="Burrow official")
+        resp = self.register(client_name="Cache official")
         app = get_application_model().objects.get(client_id=resp.json()["client_id"])
-        self.assertEqual(app.name, "Burrow official (agent.meta.ai)")
+        self.assertEqual(app.name, "Cache official (agent.meta.ai)")
 
     def test_confidential_request_is_issued_a_public_client(self):
         resp = self.register(token_endpoint_auth_method="client_secret_post")

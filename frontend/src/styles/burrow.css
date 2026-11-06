@@ -1,5 +1,5 @@
 /*
- * Burrow design system applied to WYGIWYH ("money", Kacang's app).
+ * Burrow design system applied to Cache (Kacang's app, "money" in the design system).
  * Tokens and the bh-* component classes come from burrow.generated.css
  * (run `node frontend/burrow/generate.cjs` after updating the vendored Burrow sources).
  * This file holds the app-specific parts: DaisyUI restyled with Burrow, and app components.

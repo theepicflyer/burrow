@@ -17,7 +17,7 @@ from pathlib import Path
 
 from django.utils.text import slugify
 
-SITE_TITLE = "Burrow"
+SITE_TITLE = "Cache"
 TITLE_SEPARATOR = "::"
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -491,7 +491,7 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "Burrow API",
+    "TITLE": "Cache API",
     "DESCRIPTION": "A no-frills expense tracker",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
@@ -513,7 +513,7 @@ SPECTACULAR_SETTINGS = {
 # The tools (and the server instructions) live in apps/ledger/mcp.py; each tool
 # checks the caller's read/write scope itself.
 DJANGO_MCP_GLOBAL_SERVER_CONFIG = {
-    "name": "Burrow",
+    "name": "Cache",
     "stateless": True,
 }
 # Authentication on the /mcp endpoint itself. Reuses the project's API-token

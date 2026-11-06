@@ -163,7 +163,7 @@ class ImportReport:
             for line in self.rules_skipped:
                 add(f"  {line}")
         add("")
-        add("Currency: " + (f"{self.currency}; Burrow shows every amount with $" if self.currency else "none"))
+        add("Currency: " + (f"{self.currency}; Cache shows every amount with $" if self.currency else "none"))
         if self.other_currencies:
             add("  Also used, amounts imported as is (not converted): "
                 + ", ".join(f"{code} ({n} transactions)" for code, n in self.other_currencies))

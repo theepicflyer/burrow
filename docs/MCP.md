@@ -1,6 +1,6 @@
 # MCP server (`/mcp`)
 
-Burrow exposes a Model Context Protocol (MCP) endpoint at **`/mcp`** so an agent
+Cache exposes a Model Context Protocol (MCP) endpoint at **`/mcp`** so an agent
 (claude.ai custom connector, Claude Code CLI, or any MCP client) can read the
 household ledger and, with write access, log expenses and income. It is a
 **stateless streamable-HTTP** server built on
@@ -96,7 +96,7 @@ confidential client is answered with a public one.
 ## Connecting from the Claude Code CLI
 
 ```sh
-claude mcp add --transport http burrow https://burrow.example.com/mcp \
+claude mcp add --transport http cache https://cache.example.com/mcp \
   --header "Authorization: Token <key>"
 ```
 
