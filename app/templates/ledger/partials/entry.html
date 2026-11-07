@@ -2,7 +2,8 @@
 {#
   The add/edit transaction flow, one page at a time so nothing hides behind the phone keyboard:
   amount (own numpad, no keyboard) → title (keyboard; Return or a suggestion moves on) →
-  category (tap moves on) → review (date, month, note, repeat are optional; one tap saves).
+  category (tap moves on) → review (date, month, repeat and note are optional and set in place;
+  the calendar, other months and the note open their own page; one tap saves).
   Editing opens straight on the review page. Driven by frontend/src/ledger/entry.js.
 #}
 <div class="entry" id="entry" hidden
@@ -66,20 +67,49 @@
       </div>
     </div>
 
-    {# 4. Review #}
+    {# 4. Review: everything optional is on the page, one tap to change #}
     <div class="entry__page" data-page="review" hidden>
       <div class="entry__scroll">
         <div class="entry__hero">
           <button type="button" class="entry__hero-amount num" data-goto="amount"></button>
           <button type="button" class="entry__hero-title" data-goto="title"></button>
-          <button type="button" class="entry__hero-cat" data-goto="category"></button>
+          <button type="button" class="entry__hero-cat" data-goto="category">
+            <span class="entry__hero-tile" id="entry-hero-tile"></span>
+            <span class="grow"><span class="entry__hero-cat-name" id="entry-hero-cat-name"></span><span class="entry__hero-cat-kind" id="entry-hero-cat-kind"></span></span>
+            <span class="entry__hero-change">Change</span>
+          </button>
         </div>
-        <div class="entry__rows">
-          <button type="button" class="entry__row" data-open="date">{% icon 'calendar' 20 %}<span class="grow"><span class="entry__row-label">Date</span><span class="entry__row-value" id="entry-date-value"></span></span>{% icon 'chevron-right' 18 %}</button>
-          <button type="button" class="entry__row" data-open="month">{% icon 'chart' 20 %}<span class="grow"><span class="entry__row-label">Counts toward</span><span class="entry__row-value" id="entry-month-value"></span></span>{% icon 'chevron-right' 18 %}</button>
-          <button type="button" class="entry__row" data-open="note">{% icon 'note' 20 %}<span class="grow"><span class="entry__row-label">Note</span><span class="entry__row-value" id="entry-note-value"></span></span>{% icon 'chevron-right' 18 %}</button>
-          <button type="button" class="entry__row" data-open="repeat" id="entry-repeat-row">{% icon 'repeat' 20 %}<span class="grow"><span class="entry__row-label">Repeat</span><span class="entry__row-value" id="entry-repeat-value"></span></span>{% icon 'chevron-right' 18 %}</button>
+
+        <div class="entry__field">
+          <p class="entry__label">{% icon 'calendar' 18 %} Date</p>
+          <div class="entry__seg" id="entry-dates" role="radiogroup" aria-label="Date">
+            <button type="button" class="entry__seg-opt" role="radio" data-open="date" id="entry-date-other">{% icon 'calendar' 16 %}<span>Other</span></button>
+            <button type="button" class="entry__seg-opt" role="radio" data-day-ago="2" data-weekday="short"></button>
+            <button type="button" class="entry__seg-opt" role="radio" data-day-ago="1">Yesterday</button>
+            <button type="button" class="entry__seg-opt" role="radio" data-day-ago="0">Today</button>
+          </div>
         </div>
+
+        <div class="entry__field">
+          <p class="entry__label">{% icon 'chart' 18 %} Counts toward</p>
+          <div class="entry__seg entry__seg--3" id="entry-month-opts" role="radiogroup" aria-label="Counts toward"></div>
+        </div>
+
+        <div class="entry__field" id="entry-repeat-field">
+          <p class="entry__label">{% icon 'repeat' 18 %} Repeat</p>
+          <div class="entry__seg" role="radiogroup" aria-label="Repeat">
+            <button type="button" class="entry__seg-opt" role="radio" data-repeat="">Never</button>
+            <button type="button" class="entry__seg-opt" role="radio" data-repeat="week">Weekly</button>
+            <button type="button" class="entry__seg-opt" role="radio" data-repeat="month">Monthly</button>
+            <button type="button" class="entry__seg-opt" role="radio" data-repeat="year">Yearly</button>
+          </div>
+        </div>
+
+        <div class="entry__field">
+          <p class="entry__label">{% icon 'note' 18 %} Note</p>
+          <button type="button" class="entry__notebox" data-open="note" id="entry-note-value"></button>
+        </div>
+
         <p class="note" id="entry-rule" hidden>Added by the recurring <a id="entry-rule-link" href="#"></a>. Changes here only affect this entry; edit the recurring one to change those still to come.</p>
         <p class="form-error" id="entry-error" role="alert"></p>
       </div>
@@ -94,9 +124,9 @@
       <p class="entry__q">When?</p>
       <div class="entry__scroll">
         <div class="entry__shortcuts">
-          <button type="button" class="bh-chip" data-day-ago="0">Today</button>
+          <button type="button" class="bh-chip" data-day-ago="2" data-weekday="long"></button>
           <button type="button" class="bh-chip" data-day-ago="1">Yesterday</button>
-          <button type="button" class="bh-chip" data-day-ago="2" id="entry-day-2"></button>
+          <button type="button" class="bh-chip" data-day-ago="0">Today</button>
         </div>
         <div class="entry__cal">
           <div class="entry__cal-head">
@@ -117,16 +147,6 @@
       <p class="entry__q">Note</p>
       <textarea id="entry-note" class="textarea entry__note" rows="3" placeholder="Anything to remember about it" aria-label="Note"></textarea>
       <div class="entry__bar entry__bar--inline"><button type="button" class="bh-btn bh-btn--primary bh-btn--block" data-done>Done</button></div>
-    </div>
-    <div class="entry__page" data-page="repeat" hidden>
-      <p class="entry__q">Repeat it?</p>
-      <p class="entry__hint">Cache adds it again on the same day each time.</p>
-      <div class="entry__scroll entry__choices">
-        <button type="button" class="entry__choice" data-repeat="">Doesn't repeat</button>
-        <button type="button" class="entry__choice" data-repeat="week">Every week</button>
-        <button type="button" class="entry__choice" data-repeat="month">Every month</button>
-        <button type="button" class="entry__choice" data-repeat="year">Every year</button>
-      </div>
     </div>
   </section>
 </div>
