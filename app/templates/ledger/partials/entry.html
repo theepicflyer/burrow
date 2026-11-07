@@ -81,22 +81,22 @@
         </div>
 
         <div class="entry__field">
-          <p class="entry__label">{% icon 'calendar' 16 %} Date</p>
+          <p class="entry__label">{% icon 'calendar' 18 %} Date</p>
           <div class="entry__seg" id="entry-dates" role="radiogroup" aria-label="Date">
-            <button type="button" class="entry__seg-opt" role="radio" data-day-ago="0">Today</button>
-            <button type="button" class="entry__seg-opt" role="radio" data-day-ago="1">Yesterday</button>
-            <button type="button" class="entry__seg-opt" role="radio" data-day-ago="2" data-weekday="short"></button>
             <button type="button" class="entry__seg-opt" role="radio" data-open="date" id="entry-date-other">{% icon 'calendar' 16 %}<span>Other</span></button>
+            <button type="button" class="entry__seg-opt" role="radio" data-day-ago="2" data-weekday="short"></button>
+            <button type="button" class="entry__seg-opt" role="radio" data-day-ago="1">Yesterday</button>
+            <button type="button" class="entry__seg-opt" role="radio" data-day-ago="0">Today</button>
           </div>
         </div>
 
         <div class="entry__field">
-          <p class="entry__label">{% icon 'chart' 16 %} Counts toward</p>
+          <p class="entry__label">{% icon 'chart' 18 %} Counts toward</p>
           <div class="entry__seg entry__seg--3" id="entry-month-opts" role="radiogroup" aria-label="Counts toward"></div>
         </div>
 
         <div class="entry__field" id="entry-repeat-field">
-          <p class="entry__label">{% icon 'repeat' 16 %} Repeat</p>
+          <p class="entry__label">{% icon 'repeat' 18 %} Repeat</p>
           <div class="entry__seg" role="radiogroup" aria-label="Repeat">
             <button type="button" class="entry__seg-opt" role="radio" data-repeat="">Never</button>
             <button type="button" class="entry__seg-opt" role="radio" data-repeat="week">Weekly</button>
@@ -106,7 +106,7 @@
         </div>
 
         <div class="entry__field">
-          <p class="entry__label">{% icon 'note' 16 %} Note</p>
+          <p class="entry__label">{% icon 'note' 18 %} Note</p>
           <button type="button" class="entry__notebox" data-open="note" id="entry-note-value"></button>
         </div>
 
@@ -124,9 +124,9 @@
       <p class="entry__q">When?</p>
       <div class="entry__scroll">
         <div class="entry__shortcuts">
-          <button type="button" class="bh-chip" data-day-ago="0">Today</button>
-          <button type="button" class="bh-chip" data-day-ago="1">Yesterday</button>
           <button type="button" class="bh-chip" data-day-ago="2" data-weekday="long"></button>
+          <button type="button" class="bh-chip" data-day-ago="1">Yesterday</button>
+          <button type="button" class="bh-chip" data-day-ago="0">Today</button>
         </div>
         <div class="entry__cal">
           <div class="entry__cal-head">

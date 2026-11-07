@@ -181,7 +181,7 @@ export function initEntry() {
     el.heroCatName.textContent = cat ? cat.name : 'Pick a category';
     el.heroCatKind.textContent = cat ? (cat.kind !== 'income' && income ? `${kindLabels[cat.kind]} · money back` : kindLabels[cat.kind] || '') : '';
     el.heroCat.classList.toggle('is-missing', !cat);
-    // Date: three recent days, else "Other" shows the picked date.
+    // Date: older on the left, today on the right; "Other" shows any other picked date.
     const ago = daysAgo(s.date);
     root.querySelectorAll('#entry-dates [data-day-ago]').forEach((b) => radio(b, Number(b.dataset.dayAgo) === ago));
     const otherDate = ago < 0 || ago > 2;
@@ -189,13 +189,14 @@ export function initEntry() {
     el.dateOther.innerHTML = otherDate
       ? esc(s.date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: s.date.getFullYear() === today.getFullYear() ? undefined : '2-digit' }))
       : dateOtherHtml;
-    // Month: the date's month and the one before (a late bill), else "Other" shows the picked month.
+    // Month: the one before the date's (a late bill) and the date's own; "Other" shows any other.
     const own = new Date(s.date.getFullYear(), s.date.getMonth(), 1);
     const near = [addMonths(own, -1), own];
     const otherMonth = !near.some((m) => ym(m) === s.month);
     const opt = (on, attr, label) => `<button type="button" class="entry__seg-opt${on ? ' is-on' : ''}" role="radio" aria-checked="${on}" ${attr}>${label}</button>`;
-    el.monthOpts.innerHTML = near.map((m) => opt(ym(m) === s.month, `data-month="${ym(m)}"`, monthLabel(m))).join('')
-      + opt(otherMonth, 'data-open="month"', otherMonth ? monthLabel(parseDay(`${s.month}-01`)) : 'Other');
+    // Oldest on the left, the date's own month on the right, like the date row.
+    el.monthOpts.innerHTML = opt(otherMonth, 'data-open="month"', otherMonth ? monthLabel(parseDay(`${s.month}-01`)) : 'Other')
+      + near.map((m) => opt(ym(m) === s.month, `data-month="${ym(m)}"`, monthLabel(m))).join('');
     el.monthOpts.querySelectorAll('[data-month]').forEach((b) => b.addEventListener('click', () => {
       s.month = b.dataset.month;
       s.monthPicked = s.month !== ym(s.date);

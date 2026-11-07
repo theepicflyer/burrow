@@ -330,7 +330,8 @@ html.entry-open, html.entry-open body { overflow: hidden; }
 .entry__hero .entry__hero-cat.is-missing { background: var(--tomato-soft); }
 .entry__field { padding: var(--space-3) 0; }
 .entry__field + .entry__field { border-top: var(--border-hair) solid var(--line); }
-.entry__field .entry__label { display: flex; align-items: center; gap: 6px; margin: 0 0 var(--space-2); }
+.entry__field .entry__label { display: flex; align-items: center; gap: 8px; margin: 0 0 var(--space-2); font: 600 16px/22px var(--font-display); letter-spacing: 0; text-transform: none; color: var(--ink); }
+.entry__field .entry__label svg { color: var(--mint-text); }
 .entry__seg { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: var(--radius-pill); background: var(--surface-sunk); }
 .entry__seg--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .entry__seg-opt { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 0; min-height: 40px; padding: 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border: 0; border-radius: var(--radius-pill); background: none; color: var(--ink-muted); font: 600 14px/20px var(--font-sans); cursor: pointer; }
