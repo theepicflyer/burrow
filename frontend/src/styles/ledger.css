@@ -289,7 +289,7 @@ html.entry-open, html.entry-open body { overflow: hidden; }
 .entry__type { min-height: 40px; border: 0; border-radius: var(--radius-pill); background: none; color: var(--ink-muted); font: 600 15px/20px var(--font-display); cursor: pointer; }
 .entry__type.is-on { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 2px var(--outline), 0 2px 0 var(--outline); }
 .entry.is-income .entry__type.is-on { background: var(--mint-soft); }
-.entry__amount { flex: 1; min-height: 72px; display: flex; align-items: center; justify-content: center; gap: 4px; font: 600 clamp(44px, 9vh, 64px)/1 var(--font-display); color: var(--ink); }
+.entry__amount { flex: 1; min-height: 72px; max-height: 220px; /* spare height goes below the keypad, not above it */ display: flex; align-items: center; justify-content: center; gap: 4px; font: 600 clamp(44px, 9vh, 64px)/1 var(--font-display); color: var(--ink); }
 .entry__cur { font-size: .5em; color: var(--ink-muted); transform: translateY(-.35em); }
 .entry__amount.is-empty { color: var(--ink-muted); }
 .entry__numpad { flex: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); }
