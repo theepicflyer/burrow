@@ -31,14 +31,15 @@ export function initEntry() {
     title: $('#entry-title'), suggest: $('#entry-suggest'), hint: $('#entry-title-hint'),
     catGrid: $('#entry-cats'), catBack: $('#entry-cats-back'),
     heroAmount: $('.entry__hero-amount'), heroTitle: $('.entry__hero-title'), heroCat: $('.entry__hero-cat'),
-    dateValue: $('#entry-date-value'), monthValue: $('#entry-month-value'), noteValue: $('#entry-note-value'),
-    repeatRow: $('#entry-repeat-row'), repeatValue: $('#entry-repeat-value'), rule: $('#entry-rule'),
+    heroTile: $('#entry-hero-tile'), heroCatName: $('#entry-hero-cat-name'), heroCatKind: $('#entry-hero-cat-kind'),
+    dateOther: $('#entry-date-other'), monthOpts: $('#entry-month-opts'), noteValue: $('#entry-note-value'),
+    repeatField: $('#entry-repeat-field'), rule: $('#entry-rule'),
     ruleLink: $('#entry-rule-link'), error: $('#entry-error'), save: $('#entry-save'), del: $('#entry-delete'),
     calTitle: $('#entry-cal-title'), cal: $('#entry-cal'), months: $('#entry-months'), note: $('#entry-note'),
-    day2: $('#entry-day-2'),
   };
   // The category label sits inside the grid so CSS order can put it between groups.
   el.catGrid.appendChild(el.catBack);
+  const dateOtherHtml = el.dateOther.innerHTML; // calendar icon + "Other"
 
   let s = null; // the transaction being entered
   let page = 'amount';
@@ -161,7 +162,11 @@ export function initEntry() {
     if (diff === 1) return 'Yesterday';
     return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: d.getFullYear() === today.getFullYear() ? undefined : 'numeric' });
   }
-  const repeatLabels = { '': "Doesn't repeat", week: 'Every week', month: 'Every month', year: 'Every year' };
+  const kindLabels = { budget: 'Budget', fund: 'Sinking fund', income: 'Income' };
+  // Long name this year, "Sep 2025" otherwise, so it fits a third of the row.
+  const monthLabel = (m) => (m.getFullYear() === today.getFullYear() ? monthName(m, true) : `${monthName(m)} ${m.getFullYear()}`);
+  const radio = (b, on) => { b.classList.toggle('is-on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); };
+  const daysAgo = (d) => Math.round((today - d) / 86400000);
   function renderReview() {
     const income = s.type === 'income';
     el.heroAmount.textContent = `${income ? '+' : '−'}${money(amountValue())}`;
@@ -169,17 +174,38 @@ export function initEntry() {
     el.heroTitle.textContent = s.title || cats.get(String(s.category))?.name || 'Add a title';
     el.heroTitle.classList.toggle('muted', !s.title);
     const cat = cats.get(String(s.category));
-    el.heroCat.innerHTML = cat ? `${iconSvg(data.sprite, cat.icon)}${esc(cat.name)}` : 'Pick a category';
+    // The same tile the category grid draws (icon, acorn or letter).
+    const tile = cat && el.catGrid.querySelector(`[data-cat="${cat.id}"] .tile`);
+    el.heroTile.innerHTML = tile ? tile.outerHTML : '';
+    el.heroTile.hidden = !tile;
+    el.heroCatName.textContent = cat ? cat.name : 'Pick a category';
+    el.heroCatKind.textContent = cat ? (cat.kind !== 'income' && income ? `${kindLabels[cat.kind]} · money back` : kindLabels[cat.kind] || '') : '';
     el.heroCat.classList.toggle('is-missing', !cat);
-    el.dateValue.textContent = dayLabel(s.date);
-    const m = parseDay(`${s.month}-01`);
-    el.monthValue.textContent = `${monthName(m, true)} ${m.getFullYear()}`;
-    el.monthValue.classList.toggle('is-set', s.month !== ym(s.date));
+    // Date: three recent days, else "Other" shows the picked date.
+    const ago = daysAgo(s.date);
+    root.querySelectorAll('#entry-dates [data-day-ago]').forEach((b) => radio(b, Number(b.dataset.dayAgo) === ago));
+    const otherDate = ago < 0 || ago > 2;
+    radio(el.dateOther, otherDate);
+    el.dateOther.innerHTML = otherDate
+      ? esc(s.date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: s.date.getFullYear() === today.getFullYear() ? undefined : '2-digit' }))
+      : dateOtherHtml;
+    // Month: the date's month and the one before (a late bill), else "Other" shows the picked month.
+    const own = new Date(s.date.getFullYear(), s.date.getMonth(), 1);
+    const near = [addMonths(own, -1), own];
+    const otherMonth = !near.some((m) => ym(m) === s.month);
+    const opt = (on, attr, label) => `<button type="button" class="entry__seg-opt${on ? ' is-on' : ''}" role="radio" aria-checked="${on}" ${attr}>${label}</button>`;
+    el.monthOpts.innerHTML = near.map((m) => opt(ym(m) === s.month, `data-month="${ym(m)}"`, monthLabel(m))).join('')
+      + opt(otherMonth, 'data-open="month"', otherMonth ? monthLabel(parseDay(`${s.month}-01`)) : 'Other');
+    el.monthOpts.querySelectorAll('[data-month]').forEach((b) => b.addEventListener('click', () => {
+      s.month = b.dataset.month;
+      s.monthPicked = s.month !== ym(s.date);
+      renderReview();
+    }));
+    el.monthOpts.querySelector('[data-open]').addEventListener('click', () => go('month'));
     el.noteValue.textContent = s.note.trim() || 'Add a note';
     el.noteValue.classList.toggle('is-set', !!s.note.trim());
-    el.repeatRow.hidden = !!s.id;
-    el.repeatValue.textContent = repeatLabels[s.repeat];
-    el.repeatValue.classList.toggle('is-set', !!s.repeat);
+    el.repeatField.hidden = !!s.id;
+    root.querySelectorAll('[data-repeat]').forEach((b) => radio(b, b.dataset.repeat === s.repeat));
     el.rule.hidden = !s.recurring;
     if (s.recurring) { el.ruleLink.textContent = s.recurringTitle || 'entry'; el.ruleLink.href = `${root.dataset.rules}${s.recurring}/`; }
     el.del.hidden = !s.id;
@@ -202,7 +228,8 @@ export function initEntry() {
   function pickDate(d) {
     s.date = d;
     if (!s.monthPicked) s.month = ym(d);
-    go('review', { back: true });
+    if (page === 'review') renderReview();
+    else go('review', { back: true });
   }
   root.querySelectorAll('[data-day-ago]').forEach((b) => b.addEventListener('click', () => {
     const d = new Date(today); d.setDate(d.getDate() - Number(b.dataset.dayAgo));
@@ -224,7 +251,7 @@ export function initEntry() {
       go('review', { back: true });
     }));
   }
-  root.querySelectorAll('[data-repeat]').forEach((b) => b.addEventListener('click', () => { s.repeat = b.dataset.repeat; go('review', { back: true }); }));
+  root.querySelectorAll('[data-repeat]').forEach((b) => b.addEventListener('click', () => { s.repeat = b.dataset.repeat; renderReview(); }));
   root.querySelector('[data-done]').addEventListener('click', () => { s.note = el.note.value; go('review', { back: true }); });
   root.querySelectorAll('[data-open]').forEach((b) => b.addEventListener('click', () => go(b.dataset.open)));
   root.querySelectorAll('[data-goto]').forEach((b) => b.addEventListener('click', () => go(b.dataset.goto)));
@@ -332,7 +359,8 @@ export function initEntry() {
     };
     trail = [];
     setType(s.type);
-    el.day2.textContent = (() => { const d = new Date(today); d.setDate(d.getDate() - 2); return d.toLocaleDateString(undefined, { weekday: 'long' }); })();
+    const day2 = new Date(today); day2.setDate(day2.getDate() - 2);
+    root.querySelectorAll('[data-weekday]').forEach((b) => { b.textContent = day2.toLocaleDateString(undefined, { weekday: b.dataset.weekday }); });
     root.hidden = false;
     document.documentElement.classList.add('entry-open');
     fit();
